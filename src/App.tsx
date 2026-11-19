@@ -1,18 +1,20 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { useStore } from './store/useStore'
 import { BottomNav, MobileTopBar, MoreSheet, QuickAddSheet, Sidebar, Toast } from './components/layout'
 import { FormHost } from './components/forms'
 import Dashboard from './pages/Dashboard'
-import Planning from './pages/Planning'
-import Running from './pages/Running'
-import Renfo from './pages/Renfo'
-import Muscu from './pages/Muscu'
-import Goals from './pages/Goals'
-import Sleep from './pages/Sleep'
-import Meals from './pages/Meals'
-import Tools from './pages/Tools'
-import Settings from './pages/Settings'
+
+// Les pages secondaires sont chargées à la demande pour accélérer le premier affichage
+const Planning = lazy(() => import('./pages/Planning'))
+const Running = lazy(() => import('./pages/Running'))
+const Renfo = lazy(() => import('./pages/Renfo'))
+const Muscu = lazy(() => import('./pages/Muscu'))
+const Goals = lazy(() => import('./pages/Goals'))
+const Sleep = lazy(() => import('./pages/Sleep'))
+const Meals = lazy(() => import('./pages/Meals'))
+const Tools = lazy(() => import('./pages/Tools'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function useTheme() {
   const theme = useStore((s) => s.theme)
@@ -42,6 +44,7 @@ export default function App() {
       <MobileTopBar />
       <main className="px-4 pb-28 pt-5 sm:px-6 lg:ml-60 lg:px-10 lg:pb-12 lg:pt-8">
         <div className="mx-auto max-w-6xl">
+          <Suspense fallback={<div className="py-20 text-center text-sm text-ink-3">Chargement…</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/planning" element={<Planning />} />
@@ -55,6 +58,7 @@ export default function App() {
             <Route path="/reglages" element={<Settings />} />
             <Route path="*" element={<Dashboard />} />
           </Routes>
+          </Suspense>
         </div>
       </main>
       <BottomNav />

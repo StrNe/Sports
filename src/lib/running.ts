@@ -266,7 +266,10 @@ export function bestEfforts(runs: Run[], races: Race[], records: PersonalRecord[
       if (Math.abs(p.distanceKm - d.km) / d.km <= 0.03)
         candidates.push({ key: d.key, label: d.label, km: d.km, timeSec: p.timeSec * (d.km / p.distanceKm), date: p.date, source: p.source, estimated: false })
     }
+    // Une séance le même jour qu'un résultat officiel correspond à la même course : on garde le résultat officiel
+    const exactDates = new Set(candidates.map((c) => c.date))
     for (const r of runs) {
+      if (exactDates.has(r.date)) continue
       if (r.distanceKm >= d.km * 0.995 && r.distanceKm <= d.km * 1.06 && r.type !== 'marche_course' && r.type !== 'tapis')
         candidates.push({ key: d.key, label: d.label, km: d.km, timeSec: r.durationSec * (d.km / r.distanceKm), date: r.date, source: r.title || RUN_TYPES[r.type].label, estimated: true })
     }

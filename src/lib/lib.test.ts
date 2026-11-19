@@ -131,3 +131,13 @@ describe('données', () => {
     expect(d.profile.sleepGoalMin).toBe(480)
   })
 })
+
+describe('records', () => {
+  it('privilégie le résultat officiel à la séance du même jour', () => {
+    const races = [{ id: 's', name: 'Semi', date: '2026-11-01', kind: 'route' as const, distanceKm: 21.0975, priority: 'A' as const, result: { timeSec: 9338 } }]
+    const b = bestEfforts([run('2026-11-01', 21.3, 9338)], races, [])
+    const semi = b.find((x) => x.key === 'semi')!
+    expect(semi.estimated).toBe(false)
+    expect(semi.timeSec).toBe(9338)
+  })
+})
