@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { AppData, DayType, ISODate, MealSlot, Profile, Theme } from '../types'
+import type { AppData, DayType, ISODate, MealSlot, PlannedWorkout, Profile, Run, Theme } from '../types'
 import { BUILTIN_RENFO } from '../data/training'
 
 export const DATA_VERSION = 1
@@ -56,6 +56,11 @@ export type Store = AppData & Actions
 
 function sortByDateDesc<T extends { date?: string }>(arr: T[]): T[] {
   return [...arr].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+}
+
+/** Même sortie déjà présente (importée depuis une autre source : .fit, COROS…) */
+export function isDuplicateRun(r: Run, existing: Run[]): boolean {
+  return existing.some((x) => x.id !== r.id && x.date === r.date && Math.abs(x.distanceKm - r.distanceKm) < 0.1 && Math.abs(x.durationSec - r.durationSec) < 90)
 }
 
 /** Complète un objet importé avec les valeurs par défaut (robustesse aux anciennes sauvegardes) */
@@ -140,13 +145,28 @@ export const useStore = create<Store>()(
           const ext = new Set(current.map((x) => x.externalId).filter(Boolean))
           for (const it of incoming as { id: string; externalId?: string }[]) {
             if (it.externalId && ext.has(it.externalId) && !map.has(it.id)) continue
-            if (!map.has(it.id)) added++
-            map.set(it.id, it)
+            const prev = map.get(it.id)
+            if (!prev) {
+              if (k === 'runs' && isDuplicateRun(it as unknown as Run, current as unknown as Run[])) continue
+              added++
+              map.set(it.id, it)
+            } else if (k === 'planned') {
+              // Le plan peut évoluer côté montre, mais une séance validée dans l'appli le reste
+              map.set(it.id, { ...prev, ...it, done: (prev as PlannedWorkout).done || (it as PlannedWorkout).done } as typeof it)
+            } else {
+              // Mise à jour : ce que tu as modifié dans l'appli (RPE, notes, type…) est conservé
+              map.set(it.id, { ...it, ...prev })
+            }
           }
           const next = [...map.values()]
           ;(patch as Record<string, unknown>)[k] = k === 'renfoTemplates' || k === 'shoes' ? next : sortByDateDesc(next as { date?: string }[])
         }
-        if (data.profile) patch.profile = { ...s.profile, ...data.profile }
+        if (data.profile) {
+          // On complète seulement les champs vides : le profil saisi dans l'appli fait foi
+          const profile = { ...s.profile } as Record<string, unknown>
+          for (const [key, v] of Object.entries(data.profile)) if (profile[key] === undefined || profile[key] === '') profile[key] = v
+          patch.profile = profile as unknown as Profile
+        }
         if (data.mealPicks) patch.mealPicks = { ...s.mealPicks, ...data.mealPicks }
         if (data.favoriteMeals) patch.favoriteMeals = [...new Set([...s.favoriteMeals, ...data.favoriteMeals])]
         if (data.dayTypeOverrides) patch.dayTypeOverrides = { ...s.dayTypeOverrides, ...data.dayTypeOverrides }

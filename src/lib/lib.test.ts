@@ -141,3 +141,27 @@ describe('records', () => {
     expect(semi.timeSec).toBe(9338)
   })
 })
+
+describe('import répété', () => {
+  it('met à jour sans doublon et conserve les modifications', async () => {
+    const { useStore } = await import('../store/useStore')
+    const st = useStore.getState()
+    st.resetAll()
+    st.mergeAll({ runs: [run('2026-11-19', 5.08, 2400, { id: 'coros-1', title: 'EF' })], planned: [{ id: 'p1', date: '2026-11-19', kind: 'run', title: 'EF 40' }], profile: { ...emptyData().profile, name: 'Lucas', weightKg: 77 } })
+    useStore.getState().upsert('runs', { ...useStore.getState().runs[0], rpe: 4, notes: 'bien' })
+    useStore.getState().upsert('planned', { ...useStore.getState().planned[0], done: true })
+    useStore.getState().setProfile({ weightKg: 76 })
+    const { added } = useStore.getState().mergeAll({
+      runs: [run('2026-11-19', 5.08, 2400, { id: 'coros-1', title: 'EF' }), run('2026-11-19', 5.1, 2410, { id: 'fit-x' }), run('2026-11-20', 6, 2600, { id: 'coros-2' })],
+      planned: [{ id: 'p1', date: '2026-11-19', kind: 'run', title: 'EF 45' }],
+      profile: { ...emptyData().profile, name: 'Lucas', weightKg: 77.3 },
+    })
+    const s = useStore.getState()
+    expect(added).toBe(1)
+    expect(s.runs).toHaveLength(2)
+    expect(s.runs.find((r) => r.id === 'coros-1')?.rpe).toBe(4)
+    expect(s.planned[0].title).toBe('EF 45')
+    expect(s.planned[0].done).toBe(true)
+    expect(s.profile.weightKg).toBe(76)
+  })
+})

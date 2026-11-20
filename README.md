@@ -29,6 +29,13 @@ Elle est pensée pour un coureur qui prépare un objectif : chaque écran répon
 
 Exporte une activité au format `.fit` depuis l'application de ta montre (COROS, Garmin, Suunto…) ou depuis Strava (`.gpx` / `.tcx`), puis utilise **+ → Importer depuis ma montre**. Les doublons sont ignorés.
 
+### Mettre à jour depuis COROS
+
+Un fichier de sauvegarde généré à partir de ton compte COROS (séances, nuits, plan d'entraînement, courses) peut être importé autant de fois que nécessaire via **Profil & données → Importer une sauvegarde (en fusionnant)** :
+- les séances déjà présentes ne sont pas dupliquées (y compris si tu les avais importées en `.fit`) ;
+- ce que tu as modifié dans l'appli (RPE, notes, type de séance, profil, séances validées) est conservé ;
+- les changements du plan d'entraînement sont repris.
+
 ## Installer sur ton téléphone
 
 Ouvre l'application dans le navigateur puis :

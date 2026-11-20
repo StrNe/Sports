@@ -283,8 +283,11 @@ export function bestEfforts(runs: Run[], races: Race[], records: PersonalRecord[
 export function referencePerformances(runs: Run[], races: Race[], records: PersonalRecord[], today = todayISO()): Performance[] {
   const recent = (p: Performance) => daysBetween(p.date, today) <= 180 && daysBetween(p.date, today) >= 0
   const exact = [...recordPerformances(records), ...racePerformances(races)].filter(recent)
+  // Seules les compétitions comptent : un « test » enregistré inclut souvent l'échauffement.
+  // Une sortie le même jour qu'un résultat officiel est la même course : on garde le résultat officiel.
+  const exactDates = new Set(exact.map((p) => p.date))
   const fromRuns: Performance[] = runs
-    .filter((r) => (r.type === 'competition' || r.type === 'test') && r.distanceKm >= 3)
+    .filter((r) => r.type === 'competition' && r.distanceKm >= 3 && !exactDates.has(r.date))
     .map((r) => ({ distanceKm: r.distanceKm, timeSec: r.durationSec, date: r.date, source: r.title || RUN_TYPES[r.type].label, exact: false }))
     .filter(recent)
   return [...exact, ...fromRuns]

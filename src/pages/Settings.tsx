@@ -54,7 +54,7 @@ export default function Settings() {
               notify('Sauvegarde restaurée ✅')
             } else {
               const { added } = s.mergeAll(data)
-              notify(`${added} élément${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} ✅`)
+              notify(added ? `${added} nouvel${added > 1 ? 's' : ''} élément${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} ✅` : 'Tout est déjà à jour ✅')
             }
           } catch (err) {
             notify(`Import impossible : ${(err as Error).message}`, 'error')
