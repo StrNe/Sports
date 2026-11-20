@@ -141,8 +141,16 @@ export interface SleepEntry {
   restingHr?: number
   hrv?: number
   deepPct?: number
+  lightPct?: number
   remPct?: number
   awakeMin?: number
+  /** Réveils de plus de 5 min */
+  awakeCount?: number
+  /** VFC nocturne : statut et plage normale fournis par la montre */
+  hrvStatus?: 'normal' | 'bas' | 'haut'
+  hrvLow?: number
+  hrvHigh?: number
+  hrvBaseline?: number
   napMin?: number
   /** Forme au réveil : énergie 1–5 */
   energy?: number

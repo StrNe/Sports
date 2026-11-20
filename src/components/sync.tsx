@@ -67,6 +67,7 @@ export function runCorosSync(opts: { manual?: boolean; full?: boolean } = {}): P
       const res = await fetchCoros(call, {
         lastDate: opts.full ? undefined : st.sync?.corosLastDate,
         raceDates: new Set(st.races.map((r) => r.date)),
+        hasHrv: st.sleep.some((s) => s.hrv != null),
         onStep: (step) => useUi.getState().setCoros({ state: 'syncing', step }),
       })
       // Une sortie enregistrée le jour d'une séance prévue la valide automatiquement

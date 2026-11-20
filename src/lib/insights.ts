@@ -26,7 +26,26 @@ export function sleepStats(sleep: SleepEntry[], goalMin: number, days: number, t
     regularity = Math.sqrt(beds.reduce((a, b) => a + (b - mean) ** 2, 0) / beds.length)
   }
   const avgBed = beds.length ? beds.reduce((a, b) => a + b, 0) / beds.length : undefined
-  return { count: entries.length, avgMin, debt, quality, regularity, avgBed, entries }
+  // Sommeil total par jour : nuit + siestes
+  const avgDailyMin = avg(entries.map((s) => s.durationMin + (s.napMin ?? 0)))
+  const avgNapMin = avg(entries.map((s) => s.napMin ?? 0))
+  return { count: entries.length, avgMin, avgDailyMin, avgNapMin, debt, quality, regularity, avgBed, entries }
+}
+
+const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+const WEEKDAYS_LONG = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+
+/** Sommeil moyen par jour de la semaine (jour du réveil), sur les N dernières semaines */
+export function sleepByWeekday(sleep: SleepEntry[], weeks = 8, today = todayISO()) {
+  const from = addDaysISO(today, -(weeks * 7 - 1))
+  const buckets = WEEKDAYS.map((label, i) => ({ label, long: WEEKDAYS_LONG[i], night: [] as number[], nap: [] as number[] }))
+  for (const s of sleep) {
+    if (s.date < from || s.date > today) continue
+    const dow = (new Date(s.date + 'T12:00:00').getDay() + 6) % 7
+    buckets[dow].night.push(s.durationMin)
+    buckets[dow].nap.push(s.napMin ?? 0)
+  }
+  return buckets.map((b) => ({ label: b.label, long: b.long, count: b.night.length, nightMin: avg(b.night), napMin: avg(b.nap) }))
 }
 
 export function lastSleep(sleep: SleepEntry[], today = todayISO()): SleepEntry | undefined {
@@ -62,6 +81,12 @@ export function readiness(data: Pick<AppData, 'sleep' | 'runs' | 'renfo' | 'musc
     score += clamp(20 - Math.max(0, delta) * 3.3, 0, 20)
     factors.push({ label: 'FC de repos', value: `${s.restingHr} bpm (${delta >= 0 ? '+' : ''}${delta.toFixed(0)})`, impact: delta <= 1 ? 'up' : delta >= 4 ? 'down' : 'neutral' })
   } else score += 14
+
+  if (s.hrv) {
+    if (s.hrvStatus === 'bas') score -= 8
+    const range = s.hrvLow && s.hrvHigh ? ` (normale ${s.hrvLow}–${s.hrvHigh})` : ''
+    factors.push({ label: 'VFC nocturne', value: `${s.hrv} ms${range}`, impact: s.hrvStatus === 'bas' ? 'down' : 'up' })
+  }
 
   const load: LoadStatus = loadStatus(dailyLoads(data.runs, data.renfo, data.muscu), today)
   const loadPts = { optimal: 15, sous: 14, vigilance: 8, risque: 2, inconnu: 12 }[load.zone]

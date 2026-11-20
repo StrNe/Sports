@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
-import { Flag, Medal, Plus, Sparkles, Trophy } from 'lucide-react'
+import { Flag, Medal, Pencil, Plus, Sparkles, Target, Trophy } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
 import { Badge, Button, Card, CardTitle, EmptyState, ListRow, PageHeader } from '../components/ui'
 import { NextRaceCard } from '../components/race'
-import { daysBetween, fmtDate, fmtDuration, fmtKm, fmtNum, fmtPace, todayISO } from '../lib/format'
+import { daysBetween, fmtDate, fmtDuration, fmtKm, fmtMinutes, fmtNum, fmtPace, todayISO } from '../lib/format'
 import { RACE_KIND_LABEL, loopKmOf, STANDARD_DISTANCES, bestEfforts, bestVdot, biggestWeek, longestRun, predictTime, raceDistanceKm, referencePerformances } from '../lib/running'
 import { nextGoalRace, upcomingRaces } from '../lib/insights'
 
 export default function Goals() {
-  const { races, records, runs } = useStore()
+  const { races, records, runs, profile } = useStore()
   const openForm = useUi((s) => s.openForm)
   const today = todayISO()
   const perfs = useMemo(() => referencePerformances(runs, races, records), [runs, races, records])
@@ -41,6 +41,33 @@ export default function Goals() {
       />
 
       <NextRaceCard race={goal} perfs={perfs} />
+
+      <Card className="mt-4">
+        <CardTitle
+          icon={<Target size={16} />}
+          accent="race"
+          title="Mes objectifs"
+          subtitle={profile.mainGoal || 'Fixe-toi des repères pour chaque semaine'}
+          action={
+            <Button size="sm" icon={<Pencil size={14} />} onClick={() => openForm('goals')}>
+              Modifier
+            </Button>
+          }
+        />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { label: 'Km par semaine', value: profile.weeklyKmGoal ? `${profile.weeklyKmGoal} km` : '—' },
+            { label: 'Séances par semaine', value: profile.weeklySessionsGoal ? String(profile.weeklySessionsGoal) : '—' },
+            { label: 'Sommeil par nuit', value: fmtMinutes(profile.sleepGoalMin) },
+            { label: 'Limite FC endurance', value: profile.efHrLimit ? `${profile.efHrLimit} bpm` : '—' },
+          ].map((g) => (
+            <button key={g.label} type="button" onClick={() => openForm('goals')} className="rounded-xl bg-surface-2 p-3 text-left transition hover:bg-surface-3">
+              <p className="text-xs text-ink-3">{g.label}</p>
+              <p className="mt-0.5 font-semibold">{g.value}</p>
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {upcoming.length > 0 && (
         <>

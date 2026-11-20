@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 
 // Les pages secondaires sont chargées à la demande pour accélérer le premier affichage
 const Planning = lazy(() => import('./pages/Planning'))
+const Sessions = lazy(() => import('./pages/Sessions'))
 const Running = lazy(() => import('./pages/Running'))
 const Renfo = lazy(() => import('./pages/Renfo'))
 const Muscu = lazy(() => import('./pages/Muscu'))
@@ -52,12 +53,13 @@ export default function App() {
     <div className="min-h-dvh">
       <Sidebar />
       <MobileTopBar />
-      <main className="px-4 pb-28 pt-5 sm:px-6 lg:ml-60 lg:px-10 lg:pb-12 lg:pt-8">
+      <main className="main-pad px-4 pt-5 sm:px-6 lg:ml-60 lg:px-10 lg:pt-8">
         <div className="mx-auto max-w-6xl">
           <Suspense fallback={<div className="py-20 text-center text-sm text-ink-3">Chargement…</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/planning" element={<Planning />} />
+            <Route path="/seances" element={<Sessions />} />
             <Route path="/course" element={<Running />} />
             <Route path="/renfo" element={<Renfo />} />
             <Route path="/muscu" element={<Muscu />} />

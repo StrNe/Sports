@@ -199,7 +199,7 @@ export function Stat({ label, value, unit, sub, accent, icon, className }: { lab
     <div className={clsx('rounded-2xl border border-line bg-surface p-4', className)}>
       <div className="flex items-center gap-1.5 text-[13px] text-ink-2">
         {icon && <span className={clsx(accent ? ACCENT_TEXT[accent] : 'text-ink-3')}>{icon}</span>}
-        <span className="truncate">{label}</span>
+        <span className="leading-tight">{label}</span>
       </div>
       <div className="mt-1.5 flex items-baseline gap-1">
         <span className="text-2xl font-semibold tracking-tight">{value}</span>

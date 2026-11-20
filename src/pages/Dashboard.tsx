@@ -1,18 +1,20 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
-import { ArrowRight, BedDouble, CalendarDays, Check, Flame, Footprints, Gauge, Lightbulb, Moon, Plus, TrendingDown, TrendingUp, Minus, Trophy, Utensils } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarDays, Check, ChevronRight, Flame, Footprints, Gauge, Lightbulb, Moon, Plus, TrendingDown, TrendingUp, Minus, Trophy, Utensils } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
-import { ACCENT_BG, ACCENT_BG_SOFT, ACCENT_TEXT, Badge, Button, Card, CardTitle, EmptyState, Meter, ProgressRing, Stat, type Accent } from '../components/ui'
-import { SimpleBarChart } from '../components/charts'
+import { ACCENT_BG, ACCENT_BG_SOFT, ACCENT_TEXT, Badge, Button, Card, CardTitle, EmptyState, Meter, ProgressRing, type Accent } from '../components/ui'
+import { MiniBars, SimpleBarChart } from '../components/charts'
 import { NextRaceCard } from '../components/race'
 import { FeedRow, KIND_ICON, buildFeed } from '../components/activity'
-import { addDaysISO, capitalize, fmtDateLong, fmtDuration, fmtKm, fmtMinutes, fmtNum, todayISO, weekStartISO } from '../lib/format'
+import { addDaysISO, capitalize, fmtDate, fmtDateLong, fmtDuration, fmtKm, fmtMinutes, fmtNum, todayISO, weekStartISO } from '../lib/format'
 import { bestEfforts, dailyLoads, loadStatus, referencePerformances, runsInRange, weeklyRunSummary } from '../lib/running'
 import { coachTips, nextGoalRace, readiness, sleepStats } from '../lib/insights'
 import { DAY_TYPES, detectDayType, mealFor } from '../lib/nutrition'
 import { MEAL_SLOTS } from '../data/meals'
 import type { PlannedWorkout } from '../types'
+
+const TILE = 'block rounded-2xl border border-line bg-surface p-4 transition hover:border-ink-3/40 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -39,6 +41,11 @@ export default function Dashboard() {
   const muscuWeek = muscu.filter((s) => s.date >= ws).length
   const sessionsWeek = thisWeek.runs + renfoWeek + muscuWeek
   const ss = sleepStats(sleep, profile.sleepGoalMin, 7)
+  const sleepDays = Array.from({ length: 7 }, (_, i) => {
+    const date = addDaysISO(today, -(6 - i))
+    const e = sleep.find((x) => x.date === date)
+    return { date, total: e ? e.durationMin + (e.napMin ?? 0) : null }
+  })
   const load = loadStatus(dailyLoads(runs, renfo, muscu))
   const tips = coachTips(data).slice(0, 3)
   const feed = buildFeed(runs, renfo, muscu).slice(0, 6)
@@ -206,11 +213,12 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Chiffres clés */}
+      {/* Chiffres clés : chaque tuile mène au détail */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-2xl border border-line bg-surface p-4">
+        <Link to="/course" className={TILE}>
           <div className="flex items-center gap-1.5 text-[13px] text-ink-2">
             <Footprints size={15} className="text-run" /> Km cette semaine
+            <ChevronRight size={14} className="ml-auto text-ink-3" />
           </div>
           <div className="mt-1.5 flex items-baseline gap-1">
             <span className="text-2xl font-semibold tracking-tight">{fmtKm(thisWeek.km)}</span>
@@ -218,10 +226,11 @@ export default function Dashboard() {
           </div>
           {profile.weeklyKmGoal ? <Meter className="mt-2" value={thisWeek.km} max={profile.weeklyKmGoal} accent="run" label="Objectif hebdomadaire" /> : null}
           {lastWeek && <p className="mt-1.5 text-xs text-ink-3">Semaine passée : {fmtKm(lastWeek.km)} km</p>}
-        </div>
-        <div className="rounded-2xl border border-line bg-surface p-4">
+        </Link>
+        <Link to="/seances" className={TILE}>
           <div className="flex items-center gap-1.5 text-[13px] text-ink-2">
             <Flame size={15} className="text-brand" /> Séances cette semaine
+            <ChevronRight size={14} className="ml-auto text-ink-3" />
           </div>
           <div className="mt-1.5 flex items-baseline gap-1">
             <span className="text-2xl font-semibold tracking-tight">{sessionsWeek}</span>
@@ -241,26 +250,34 @@ export default function Dashboard() {
               </span>
             ))}
           </div>
-        </div>
-        <Stat
-          label="Sommeil · 7 j"
-          icon={<Moon size={15} />}
-          accent="sleep"
-          value={ss.avgMin ? fmtMinutes(ss.avgMin) : '—'}
-          sub={ss.avgMin ? `Objectif ${fmtMinutes(profile.sleepGoalMin)}` : 'Aucune nuit enregistrée'}
-        />
-        <Stat
-          label="Charge"
-          icon={<Gauge size={15} />}
-          accent="brand"
-          value={load.ratio ? fmtNum(load.ratio, 2) : '—'}
-          sub={
+        </Link>
+        <Link to="/sommeil" className={TILE}>
+          <div className="flex items-center gap-1.5 text-[13px] text-ink-2">
+            <Moon size={15} className="text-sleep" /> Sommeil moyen par jour
+            <ChevronRight size={14} className="ml-auto text-ink-3" />
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-1">
+            <span className="text-2xl font-semibold tracking-tight">{ss.avgDailyMin ? fmtMinutes(ss.avgDailyMin) : '—'}</span>
+            <span className="text-sm text-ink-3">/ {fmtMinutes(profile.sleepGoalMin)}</span>
+          </div>
+          <div className="mt-2">
+            <MiniBars values={sleepDays.map((d) => d.total)} color="var(--sleep)" max={Math.max(profile.sleepGoalMin, ...sleepDays.map((d) => d.total ?? 0))} labels={sleepDays.map((d) => `${fmtDate(d.date, 'EEE d')} : ${d.total ? fmtMinutes(d.total) : 'pas de données'}`)} />
+          </div>
+          <p className="mt-1.5 text-xs text-ink-3">{ss.avgDailyMin ? `7 derniers jours${ss.avgNapMin && ss.avgNapMin >= 5 ? `, dont ${fmtMinutes(ss.avgNapMin)} de sieste` : ''}` : 'Aucune nuit enregistrée'}</p>
+        </Link>
+        <Link to="/course" className={TILE}>
+          <div className="flex items-center gap-1.5 text-[13px] text-ink-2">
+            <Gauge size={15} className="text-brand" /> Charge
+            <ChevronRight size={14} className="ml-auto text-ink-3" />
+          </div>
+          <div className="mt-1.5 text-2xl font-semibold tracking-tight">{load.ratio ? fmtNum(load.ratio, 2) : '—'}</div>
+          <div className="mt-1 text-xs text-ink-3">
             <span className="inline-flex items-center gap-1">
               <span className={clsx('size-2 rounded-full', load.zone === 'optimal' ? 'bg-good' : load.zone === 'vigilance' ? 'bg-warn' : load.zone === 'risque' ? 'bg-critical' : 'bg-ink-3')} />
               {load.label}
             </span>
-          }
-        />
+          </div>
+        </Link>
       </div>
 
       {/* Volume + conseils */}

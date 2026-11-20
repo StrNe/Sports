@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Dumbbell, Medal, Plus, Repeat, TrendingUp, Weight } from 'lucide-react'
+import clsx from 'clsx'
+import { ChevronDown, Clock, Dumbbell, Medal, Play, Plus, Repeat, TrendingUp, Weight } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
-import { Button, Card, CardTitle, EmptyState, PageHeader, Select, Stat } from '../components/ui'
+import { Badge, Button, Callout, Card, CardTitle, PageHeader, Select, Stat } from '../components/ui'
+import { MUSCU_TEMPLATES, type MuscuTemplate } from '../data/training'
+import { RUNNER_EXERCISES, STRENGTH_CATEGORY_LABEL, type StrengthCategory, type StrengthExercise } from '../data/runnerStrength'
 import { SimpleBarChart, TrendChart } from '../components/charts'
 import { TrainingTabs } from '../components/layout'
 import { MuscuRow, muscuTonnage } from '../components/activity'
@@ -58,6 +61,7 @@ export default function Muscu() {
   const month = muscu.filter((s) => s.date >= monthStart)
   const stats = useMemo(() => exerciseStats(muscu), [muscu])
   const [selected, setSelected] = useState<string>('')
+  const [category, setCategory] = useState<'all' | StrengthCategory>('all')
   const exercise = selected || stats[0]?.name || ''
 
   const progression = useMemo(() => {
@@ -90,7 +94,7 @@ export default function Muscu() {
     <div>
       <PageHeader
         title="Musculation"
-        subtitle="Charges, progression et records par exercice"
+        subtitle="Charges, progression et exercices choisis pour la course à pied"
         icon={<Dumbbell size={22} />}
         accent="muscu"
         actions={
@@ -102,16 +106,9 @@ export default function Muscu() {
       <TrainingTabs />
 
       {!muscu.length ? (
-        <EmptyState
-          icon={<Dumbbell size={22} />}
-          title="Aucune séance de musculation"
-          text="Enregistre tes séries (répétitions × charge) : Foulée calcule ton tonnage, ton 1RM estimé et tes records par exercice. Des programmes pensés pour les coureurs sont proposés dans le formulaire."
-          action={
-            <Button variant="primary" onClick={() => openForm('muscu')}>
-              Ajouter une séance
-            </Button>
-          }
-        />
+        <Callout icon="🏋️" title="Pourquoi la muscu quand on court ?">
+          Deux séances de force par semaine améliorent l’économie de course (tu dépenses moins d’énergie à la même allure) et réduisent le risque de blessure. Lance un des programmes ci-dessous : Foulée suivra ensuite tes charges, ton 1RM estimé et tes records.
+        </Callout>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -198,7 +195,50 @@ export default function Muscu() {
               )}
             />
           </Card>
+        </>
+      )}
 
+      <h2 className="mb-3 mt-8 text-[13px] font-semibold uppercase tracking-wider text-ink-3">Programmes pour coureurs</h2>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {MUSCU_TEMPLATES.map((t) => (
+          <ProgramCard key={t.title} t={t} />
+        ))}
+      </div>
+
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-ink-3">Exercices pour la course à pied</h2>
+      </div>
+      <div className="scroll-thin -mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        {(['all', ...Object.keys(STRENGTH_CATEGORY_LABEL)] as ('all' | StrengthCategory)[]).map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setCategory(c)}
+            className={clsx('shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition', category === c ? 'bg-ink text-bg' : 'bg-surface-3 text-ink-2 hover:text-ink')}
+          >
+            {c === 'all' ? 'Tous' : STRENGTH_CATEGORY_LABEL[c]}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {RUNNER_EXERCISES.filter((e) => category === 'all' || e.category === category).map((e) => (
+          <ExerciseCard key={e.name} e={e} />
+        ))}
+      </div>
+
+      <div className="mt-4">
+        <Callout icon="🗓️" title="Quand placer la muscu dans ta semaine ?">
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            <li>Le même jour qu’une séance de qualité (après la course, ou 6 h plus tard) : les jours durs restent durs, les jours faciles restent faciles.</li>
+            <li>Jamais la veille d’une sortie longue ou d’une séance clé.</li>
+            <li>2 séances par semaine en préparation, 1 seule pendant l’affûtage, aucune la semaine de course.</li>
+            <li>Choisis une charge qui laisse 2 répétitions « en réserve » : pas d’échec musculaire.</li>
+          </ul>
+        </Callout>
+      </div>
+
+      {muscu.length > 0 && (
+        <>
           <h2 className="mb-3 mt-8 text-[13px] font-semibold uppercase tracking-wider text-ink-3">Historique</h2>
           <Card className="!p-3 sm:!p-4">
             <div className="divide-y divide-line">
@@ -215,6 +255,88 @@ export default function Muscu() {
             </div>
           </Card>
         </>
+      )}
+    </div>
+  )
+}
+
+function ProgramCard({ t }: { t: MuscuTemplate }) {
+  const [open, setOpen] = useState(false)
+  const openForm = useUi((x) => x.openForm)
+  return (
+    <div className="flex flex-col rounded-2xl border border-line bg-surface p-4">
+      <p className="font-semibold leading-tight">{t.title}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        <Badge accent="muscu">
+          <Clock size={11} /> {t.durationMin} min
+        </Badge>
+        <Badge>{t.exercises.length} exercices</Badge>
+      </div>
+      <p className="mt-2 text-sm text-ink-2">{t.description}</p>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-2 inline-flex items-center gap-1 self-start text-xs font-medium text-ink-3 hover:text-ink">
+        Voir le détail <ChevronDown size={14} className={clsx('transition', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <ul className="mt-2 space-y-1 rounded-xl bg-surface-2 p-3 text-sm">
+          {t.exercises.map((e) => (
+            <li key={e.name} className="flex justify-between gap-3">
+              <span>{e.name}</span>
+              <span className="shrink-0 text-ink-3 tabular">
+                {e.sets.length} × {e.sets[0]?.reps}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-auto pt-3">
+        <Button
+          size="sm"
+          variant="soft"
+          className="w-full"
+          icon={<Play size={14} />}
+          onClick={() => openForm('muscu', { title: t.title, durationMin: t.durationMin, date: todayISO(), exercises: t.exercises.map((e) => ({ name: e.name, sets: e.sets.map((x) => ({ ...x })) })) })}
+        >
+          Faire cette séance
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function ExerciseCard({ e }: { e: StrengthExercise }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="flex flex-col rounded-2xl border border-line bg-surface p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold leading-tight">{e.name}</p>
+          <p className="mt-0.5 text-xs text-ink-3">{e.muscles}</p>
+        </div>
+        <Badge accent="muscu">{STRENGTH_CATEGORY_LABEL[e.category]}</Badge>
+      </div>
+      <p className="mt-2 text-sm text-ink-2">{e.why}</p>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <span>
+          <span className="text-ink-3">Dosage : </span>
+          <span className="font-medium">{e.dose}</span>
+        </span>
+        <span>
+          <span className="text-ink-3">Matériel : </span>
+          <span className="font-medium">{e.equipment}</span>
+        </span>
+      </div>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-2 inline-flex items-center gap-1 self-start text-xs font-medium text-ink-3 hover:text-ink">
+        Comment le faire <ChevronDown size={14} className={clsx('transition', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">
+          <ol className="list-decimal space-y-1 pl-4 text-ink-2">
+            {e.how.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ol>
+          {e.easier && <p className="mt-2 text-xs text-ink-3">Plus facile : {e.easier}</p>}
+        </div>
       )}
     </div>
   )

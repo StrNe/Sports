@@ -343,7 +343,7 @@ export function MuscuForm({ initial }: { initial?: Partial<MuscuSession> }) {
       if (s) setD((x) => ({ ...x, title: s.title, durationMin: s.durationMin, exercises: s.exercises.map((e) => ({ name: e.name, sets: e.sets.map((st) => ({ ...st })) })) }))
     } else if (v.startsWith('tpl:')) {
       const t = MUSCU_TEMPLATES[Number(v.slice(4))]
-      if (t) setD((x) => ({ ...x, title: t.title, exercises: t.exercises.map((e) => ({ name: e.name, sets: e.sets.map((st) => ({ ...st })) })) }))
+      if (t) setD((x) => ({ ...x, title: t.title, durationMin: t.durationMin, exercises: t.exercises.map((e) => ({ name: e.name, sets: e.sets.map((st) => ({ ...st })) })) }))
     }
   }
 
@@ -368,7 +368,7 @@ export function MuscuForm({ initial }: { initial?: Partial<MuscuSession> }) {
                 ))}
               </optgroup>
             )}
-            <optgroup label="Programmes suggérés">
+            <optgroup label="Programmes pour coureurs">
               {MUSCU_TEMPLATES.map((t, i) => (
                 <option key={t.title} value={`tpl:${i}`}>
                   {t.title}
@@ -819,6 +819,56 @@ export function PlannedForm({ initial }: { initial?: Partial<PlannedWorkout> }) 
   )
 }
 
+// ── Objectifs personnels ────────────────────────────────────
+export function GoalsForm() {
+  const { profile, setProfile } = useStore()
+  const { closeForm, notify } = useUi()
+  const [d, setD] = useState({
+    mainGoal: profile.mainGoal,
+    weeklyKmGoal: profile.weeklyKmGoal,
+    weeklySessionsGoal: profile.weeklySessionsGoal,
+    sleepGoalMin: profile.sleepGoalMin,
+    efHrLimit: profile.efHrLimit,
+  })
+  return (
+    <FormShell
+      title="Mes objectifs"
+      onSave={() => {
+        setProfile(d)
+        notify('Objectifs mis à jour 🎯')
+        closeForm()
+      }}
+    >
+      <Field label="Objectif principal" hint="Affiché dans ton profil, ex. « Finir la Backyard : 4 boucles »">
+        <Input value={d.mainGoal ?? ''} onChange={(e) => setD({ ...d, mainGoal: e.target.value || undefined })} placeholder="ex. Semi sous 2 h" />
+      </Field>
+      <Row>
+        <Field label="Kilomètres par semaine">
+          <NumberInput value={d.weeklyKmGoal} onChange={(v) => setD({ ...d, weeklyKmGoal: v })} placeholder="ex. 30" />
+        </Field>
+        <Field label="Séances par semaine" hint="Course + renfo + muscu">
+          <NumberInput value={d.weeklySessionsGoal} onChange={(v) => setD({ ...d, weeklySessionsGoal: v })} placeholder="ex. 5" />
+        </Field>
+      </Row>
+      <Row>
+        <Field label="Sommeil par nuit">
+          <Select value={d.sleepGoalMin} onChange={(e) => setD({ ...d, sleepGoalMin: Number(e.target.value) })}>
+            {Array.from({ length: 13 }, (_, i) => 390 + i * 15).map((m) => (
+              <option key={m} value={m}>
+                {Math.floor(m / 60)} h {String(m % 60).padStart(2, '0')}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Limite FC en endurance" hint="Tes footings faciles restent sous cette FC">
+          <NumberInput value={d.efHrLimit} onChange={(v) => setD({ ...d, efHrLimit: v })} placeholder="bpm" />
+        </Field>
+      </Row>
+      <p className="text-xs text-ink-3">Pour changer ta course objectif (date, distance, temps ou nombre de boucles), utilise le bouton « Modifier » de la carte « Prochain objectif ».</p>
+    </FormShell>
+  )
+}
+
 // ── Hôte des formulaires ───────────────────────────────────
 export function FormHost() {
   const form = useUi((s) => s.form)
@@ -842,5 +892,7 @@ export function FormHost() {
       return <ShoeForm key={key} initial={init} />
     case 'planned':
       return <PlannedForm key={key} initial={init} />
+    case 'goals':
+      return <GoalsForm key={key} />
   }
 }

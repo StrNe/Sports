@@ -150,7 +150,7 @@ export function Sparkline({ data, color, height = 40 }: { data: number[]; color:
 }
 
 /** Barre segmentée (un tout découpé en parties), avec légende. */
-export function SegmentedBar({ parts, className }: { parts: { label: string; value: number; color: string; display: string }[]; className?: string }) {
+export function SegmentedBar({ parts, className }: { parts: { label: string; value: number; color: string; display: string; textColor?: string }[]; className?: string }) {
   const total = parts.reduce((a, p) => a + p.value, 0)
   if (!total) return null
   return (
@@ -161,7 +161,7 @@ export function SegmentedBar({ parts, className }: { parts: { label: string; val
           .map((p) => {
             const pct = (p.value / total) * 100
             return (
-              <div key={p.label} className="flex items-center rounded-[4px] px-2 text-xs font-semibold text-white" style={{ width: `${pct}%`, background: p.color }} title={`${p.label} : ${p.display}`}>
+              <div key={p.label} className="flex items-center rounded-[4px] px-2 text-xs font-semibold" style={{ width: `${pct}%`, background: p.color, color: p.textColor ?? '#fff' }} title={`${p.label} : ${p.display}`}>
                 {pct >= 14 && <span className="truncate">{Math.round(pct)} %</span>}
               </div>
             )
@@ -186,6 +186,89 @@ export function ActivityGrid({ weeks, cells, className }: { weeks: number; cells
     <div className={clsx('grid grid-flow-col gap-[3px]', className)} style={{ gridTemplateRows: 'repeat(7, minmax(0, 1fr))', gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}>
       {cells.map((c) => (
         <div key={c.date} title={c.title} className="aspect-square rounded-[3px]" style={{ background: colors[c.level] }} />
+      ))}
+    </div>
+  )
+}
+
+export interface StackSeries {
+  key: string
+  label: string
+  color: string
+}
+
+/** Barres empilées (ex. nuit + sieste), légende au-dessus, info-bulle détaillée. */
+export function StackedBarChart({
+  data,
+  series,
+  height = 220,
+  goal,
+  goalLabel,
+  tickFormat,
+  format,
+  ariaLabel,
+}: {
+  data: ({ label: string; tooltipLabel?: string } & Record<string, unknown>)[]
+  series: StackSeries[]
+  height?: number
+  goal?: number
+  goalLabel?: string
+  tickFormat?: (v: number) => string
+  format: (v: number) => string
+  ariaLabel: string
+}) {
+  const Tip = ({ active, payload }: { active?: boolean; payload?: { payload?: Record<string, unknown> }[] }) => {
+    if (!active || !payload?.length) return null
+    const row = payload[0].payload ?? {}
+    const total = series.reduce((a, s) => a + (Number(row[s.key]) || 0), 0)
+    return (
+      <div className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs shadow-lg">
+        <div className="text-ink-3">{String(row.tooltipLabel ?? row.label)}</div>
+        {series.map((s) => (
+          <div key={s.key} className="mt-0.5 flex items-center gap-1.5 text-ink-2">
+            <span className="size-2 rounded-sm" style={{ background: s.color }} />
+            {s.label} : <span className="font-semibold text-ink">{format(Number(row[s.key]) || 0)}</span>
+          </div>
+        ))}
+        {series.length > 1 && <div className="mt-0.5 font-semibold text-ink">Total : {format(total)}</div>}
+      </div>
+    )
+  }
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
+        {series.map((s) => (
+          <span key={s.key} className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm" style={{ background: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+      <div style={{ height }} role="img" aria-label={ariaLabel}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 12, right: 4, left: -18, bottom: 0 }} barCategoryGap="22%">
+            <CartesianGrid vertical={false} stroke="var(--grid)" />
+            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={8} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} tickFormatter={tickFormat} allowDecimals={false} />
+            <Tooltip cursor={{ fill: 'var(--surface-3)', opacity: 0.6 }} content={<Tip />} />
+            {goal ? <ReferenceLine y={goal} stroke="var(--ink-3)" strokeWidth={1} label={{ value: goalLabel ?? 'Objectif', position: 'insideTopRight', fill: 'var(--ink-3)', fontSize: 10 }} /> : null}
+            {series.map((s, i) => (
+              <Bar key={s.key} dataKey={s.key} stackId="a" maxBarSize={24} fill={s.color} stroke="var(--surface)" strokeWidth={series.length > 1 ? 1 : 0} radius={i === series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} isAnimationActive={false} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+/** Mini-histogramme sans axes (7 derniers jours dans une tuile) */
+export function MiniBars({ values, color, max, labels }: { values: (number | null)[]; color: string; max?: number; labels?: string[] }) {
+  const top = max ?? Math.max(1, ...values.map((v) => v ?? 0))
+  return (
+    <div className="flex h-8 items-end gap-1" aria-hidden>
+      {values.map((v, i) => (
+        <div key={i} className="flex-1 rounded-t-[3px]" style={{ height: v ? `${Math.max(10, (v / top) * 100)}%` : '3px', background: v ? color : 'var(--surface-3)' }} title={labels?.[i]} />
       ))}
     </div>
   )

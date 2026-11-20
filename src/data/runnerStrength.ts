@@ -1,0 +1,203 @@
+// Exercices de musculation utiles au coureur à pied, avec consignes et dosage.
+
+export type StrengthCategory = 'jambes' | 'posterieure' | 'mollets' | 'hanches' | 'gainage' | 'pliometrie' | 'haut'
+
+export const STRENGTH_CATEGORY_LABEL: Record<StrengthCategory, string> = {
+  jambes: 'Force des jambes',
+  posterieure: 'Ischios & fessiers',
+  mollets: 'Mollets & pieds',
+  hanches: 'Hanches & bassin',
+  gainage: 'Gainage',
+  pliometrie: 'Pliométrie',
+  haut: 'Haut du corps',
+}
+
+export interface StrengthExercise {
+  name: string
+  category: StrengthCategory
+  muscles: string
+  why: string
+  how: string[]
+  dose: string
+  equipment: string
+  easier?: string
+}
+
+export const RUNNER_EXERCISES: StrengthExercise[] = [
+  {
+    name: 'Squat',
+    category: 'jambes',
+    muscles: 'Quadriceps, fessiers',
+    why: 'Plus de force à chaque poussée et des genoux mieux protégés dans les descentes.',
+    how: ['Pieds largeur d’épaules, pointes légèrement ouvertes', 'Descends cuisses parallèles au sol, dos droit', 'Genoux dans l’axe des pieds, remonte en poussant dans le sol'],
+    dose: '3–4 × 5–8, charge lourde',
+    equipment: 'Barre ou haltère (goblet squat)',
+    easier: 'Goblet squat avec un haltère contre la poitrine',
+  },
+  {
+    name: 'Fentes bulgares',
+    category: 'jambes',
+    muscles: 'Quadriceps, fessiers, stabilisateurs',
+    why: 'La course se fait sur une jambe : ce travail unilatéral corrige les déséquilibres gauche/droite.',
+    how: ['Pied arrière posé sur un banc', 'Descends verticalement, genou avant au-dessus du pied', 'Buste légèrement penché vers l’avant'],
+    dose: '3 × 8 par jambe',
+    equipment: 'Banc + haltères (ou poids du corps)',
+    easier: 'Fentes avant classiques',
+  },
+  {
+    name: 'Step-up',
+    category: 'jambes',
+    muscles: 'Quadriceps, fessiers',
+    why: 'Transfert direct vers les côtes et le trail : tu montes avec une seule jambe qui pousse.',
+    how: ['Monte sur un banc ou une marche haute en poussant avec la jambe du haut', 'Ne t’aide pas avec la jambe du bas', 'Redescends lentement'],
+    dose: '3 × 8–10 par jambe',
+    equipment: 'Banc, haltères facultatifs',
+  },
+  {
+    name: 'Soulevé de terre roumain',
+    category: 'posterieure',
+    muscles: 'Ischio-jambiers, fessiers, lombaires',
+    why: 'Des ischios forts = meilleure extension de hanche et moins de déchirures.',
+    how: ['Jambes presque tendues, la barre glisse le long des cuisses', 'Recule les fesses en gardant le dos plat', 'Remonte en serrant les fessiers'],
+    dose: '3 × 6–8',
+    equipment: 'Barre ou haltères',
+  },
+  {
+    name: 'Soulevé de terre sur une jambe',
+    category: 'posterieure',
+    muscles: 'Ischios, fessiers, cheville',
+    why: 'Force + équilibre sur un appui, comme à chaque foulée.',
+    how: ['Debout sur une jambe, bascule le buste en tendant l’autre jambe derrière', 'Bassin bien horizontal', 'Remonte sans poser le pied'],
+    dose: '3 × 8 par jambe',
+    equipment: 'Haltère ou kettlebell',
+  },
+  {
+    name: 'Hip thrust',
+    category: 'posterieure',
+    muscles: 'Grand fessier',
+    why: 'Le fessier est le moteur de la propulsion et stabilise le bassin.',
+    how: ['Haut du dos sur un banc, charge sur les hanches', 'Monte le bassin jusqu’à l’alignement épaules-genoux', 'Marque 1 s en haut en serrant les fessiers'],
+    dose: '3 × 8–10',
+    equipment: 'Banc + barre ou haltère',
+    easier: 'Pont fessier au sol',
+  },
+  {
+    name: 'Nordic hamstring curl',
+    category: 'posterieure',
+    muscles: 'Ischio-jambiers (excentrique)',
+    why: 'L’exercice qui réduit le plus le risque de blessure aux ischios.',
+    how: ['À genoux, chevilles bloquées (partenaire ou barre)', 'Descends le buste le plus lentement possible', 'Rattrape-toi avec les mains, remonte en poussant'],
+    dose: '2–3 × 4–6, très lent',
+    equipment: 'Partenaire ou point d’ancrage',
+  },
+  {
+    name: 'Mollets debout',
+    category: 'mollets',
+    muscles: 'Gastrocnémiens',
+    why: 'Le mollet encaisse 2 à 3 fois ton poids à chaque foulée.',
+    how: ['Avant du pied sur une marche', 'Monte sur la pointe, descends lentement sous l’horizontale', '3 s de descente'],
+    dose: '3 × 12–15, chargé',
+    equipment: 'Marche + haltère ou machine',
+  },
+  {
+    name: 'Mollets assis',
+    category: 'mollets',
+    muscles: 'Soléaire',
+    why: 'Le soléaire travaille le plus en course longue : il protège le tendon d’Achille.',
+    how: ['Assis, genoux à 90°, charge sur les cuisses', 'Monte sur la pointe des pieds', 'Descente lente'],
+    dose: '3 × 15–20',
+    equipment: 'Banc + haltères ou machine',
+  },
+  {
+    name: 'Releveurs du pied',
+    category: 'mollets',
+    muscles: 'Tibial antérieur',
+    why: 'Prévient la périostite et les douleurs à l’avant du tibia.',
+    how: ['Dos au mur, talons à 30 cm du mur', 'Relève les pointes de pieds le plus haut possible', 'Redescends sans toucher le sol'],
+    dose: '2 × 20',
+    equipment: 'Aucun',
+  },
+  {
+    name: 'Copenhagen plank',
+    category: 'hanches',
+    muscles: 'Adducteurs',
+    why: 'Stabilise le bassin et prévient les douleurs à l’aine (pubalgie).',
+    how: ['Gainage latéral, jambe du dessus posée sur un banc', 'Jambe du dessous dans le vide', 'Corps bien aligné'],
+    dose: '3 × 20–30 s par côté',
+    equipment: 'Banc',
+    easier: 'Genou posé sur le banc au lieu du pied',
+  },
+  {
+    name: 'Gainage latéral avec abduction',
+    category: 'hanches',
+    muscles: 'Moyen fessier, obliques',
+    why: 'Évite que le genou rentre vers l’intérieur (syndrome de l’essuie-glace).',
+    how: ['En gainage latéral sur l’avant-bras', 'Monte la jambe du dessus tendue', 'Bassin immobile'],
+    dose: '3 × 10 par côté',
+    equipment: 'Aucun',
+  },
+  {
+    name: 'Pallof press',
+    category: 'gainage',
+    muscles: 'Abdominaux profonds, obliques',
+    why: 'Un tronc qui résiste à la rotation rend la foulée plus économique.',
+    how: ['Élastique accroché sur le côté, à hauteur de poitrine', 'Pousse les mains devant toi sans laisser le buste tourner', 'Ramène lentement'],
+    dose: '3 × 10 par côté',
+    equipment: 'Élastique ou poulie',
+  },
+  {
+    name: 'Dead bug',
+    category: 'gainage',
+    muscles: 'Abdominaux profonds',
+    why: 'Apprend à garder le bassin stable quand bras et jambes bougent, comme en courant.',
+    how: ['Sur le dos, bras tendus vers le plafond, genoux à 90°', 'Descends bras et jambe opposés', 'Le bas du dos reste collé au sol'],
+    dose: '3 × 10',
+    equipment: 'Aucun',
+  },
+  {
+    name: 'Marche du fermier',
+    category: 'gainage',
+    muscles: 'Tronc, épaules, avant-bras',
+    why: 'Garder une posture droite quand la fatigue arrive (fin de semi, ultra).',
+    how: ['Une charge lourde dans chaque main', 'Marche droit, épaules basses, petits pas', 'Respire normalement'],
+    dose: '4 × 30 m',
+    equipment: 'Haltères ou kettlebells',
+  },
+  {
+    name: 'Sauts sur box',
+    category: 'pliometrie',
+    muscles: 'Chaîne d’extension complète',
+    why: 'Des tendons plus « raides » = une foulée plus réactive et économique.',
+    how: ['Saute à deux pieds sur une box stable', 'Réception douce, genoux fléchis', 'Redescends en marchant'],
+    dose: '3 × 5, frais et reposé',
+    equipment: 'Box ou marche haute',
+  },
+  {
+    name: 'Pogo jumps',
+    category: 'pliometrie',
+    muscles: 'Mollets, tendon d’Achille',
+    why: 'Travaille le rebond de la cheville, très utile pour l’économie de course.',
+    how: ['Petits sauts rapides sur place, jambes presque tendues', 'Contact au sol le plus court possible', 'Sur l’avant du pied'],
+    dose: '3 × 20 s',
+    equipment: 'Aucun (ou corde à sauter)',
+  },
+  {
+    name: 'Rowing haltère',
+    category: 'haut',
+    muscles: 'Dos, arrière des épaules',
+    why: 'Une bonne posture et un balancier de bras efficace, surtout en fin de course.',
+    how: ['Une main et un genou sur un banc', 'Tire l’haltère vers la hanche', 'Omoplate serrée en haut'],
+    dose: '3 × 10 par bras',
+    equipment: 'Haltère + banc',
+  },
+  {
+    name: 'Pompes',
+    category: 'haut',
+    muscles: 'Pectoraux, triceps, gainage',
+    why: 'Haut du corps et gainage en un seul exercice, sans matériel.',
+    how: ['Corps gainé de la tête aux pieds', 'Descends la poitrine près du sol', 'Coudes à 45° du corps'],
+    dose: '3 × max − 2',
+    equipment: 'Aucun',
+    easier: 'Mains surélevées sur un banc',
+  },
+]

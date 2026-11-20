@@ -1,7 +1,7 @@
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleCheck, Dumbbell, Ellipsis, FileUp, Flag, Footprints, House, Moon, Plus, Settings, TriangleAlert, Trophy, Utensils, X } from 'lucide-react'
+import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleCheck, Dumbbell, Ellipsis, FileUp, Flag, Footprints, House, ListChecks, Moon, Plus, Settings, TriangleAlert, Trophy, Utensils, X } from 'lucide-react'
 import { useStore, useUi, type FormKind } from '../store/useStore'
 import { ACCENT_BG_SOFT, ACCENT_TEXT, type Accent } from './ui'
 import { importActivityFiles } from '../lib/importers'
@@ -25,6 +25,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Entraînement',
     items: [
+      { to: '/seances', label: 'Mes séances', icon: <ListChecks size={18} />, accent: 'brand' },
       { to: '/course', label: 'Course à pied', icon: <Footprints size={18} />, accent: 'run' },
       { to: '/renfo', label: 'Renforcement', icon: <Activity size={18} />, accent: 'renfo' },
       { to: '/muscu', label: 'Musculation', icon: <Dumbbell size={18} />, accent: 'muscu' },
@@ -114,7 +115,7 @@ function SideLink({ item }: { item: NavItem }) {
 
 export function MobileTopBar() {
   return (
-    <div className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-md lg:hidden">
+    <div className="mobile-topbar sticky z-30 flex items-center justify-between border-b border-line bg-bg px-4 py-3 lg:hidden">
       <Logo />
       <div className="flex items-center gap-2">
         <SyncIndicator compact />
@@ -126,34 +127,61 @@ export function MobileTopBar() {
   )
 }
 
+/** Vrai quand le clavier virtuel occupe l'écran (on masque alors la barre du bas) */
+function useKeyboardOpen(): boolean {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => {
+      const el = document.activeElement
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
+      setOpen(typing && window.innerHeight - vv.height > 140)
+    }
+    vv.addEventListener('resize', update)
+    window.addEventListener('focusout', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      window.removeEventListener('focusout', update)
+    }
+  }, [])
+  return open
+}
+
+function BottomItem({ to, end, label, icon, active }: { to: string; end?: boolean; label: string; icon: ReactNode; active?: boolean }) {
+  return (
+    <NavLink to={to} end={end} className={({ isActive }) => clsx('flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium', active ?? isActive ? 'text-ink' : 'text-ink-3')}>
+      {({ isActive }) => (
+        <>
+          <span className={clsx('grid h-7 w-12 place-items-center rounded-full transition-colors', (active ?? isActive) && 'bg-surface-3')}>{icon}</span>
+          {label}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
 export function BottomNav() {
   const { setQuickAdd, setMore } = useUi()
   const loc = useLocation()
-  const trainingActive = ['/course', '/renfo', '/muscu'].includes(loc.pathname)
+  const keyboard = useKeyboardOpen()
+  const trainingActive = ['/seances', '/course', '/renfo', '/muscu'].includes(loc.pathname)
   const moreActive = ['/planning', '/objectifs', '/sommeil', '/outils', '/reglages'].includes(loc.pathname)
-  const item = (active: boolean) => clsx('flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium', active ? 'text-ink' : 'text-ink-3')
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-md lg:hidden" aria-label="Navigation principale">
-      <div className="mx-auto flex max-w-md items-end px-2">
-        <NavLink to="/" end className={({ isActive }) => item(isActive)}>
-          <House size={22} />
-          Accueil
-        </NavLink>
-        <NavLink to="/course" className={() => item(trainingActive)}>
-          <Footprints size={22} />
-          Séances
-        </NavLink>
-        <div className="flex flex-1 justify-center">
-          <button type="button" aria-label="Ajouter" onClick={() => setQuickAdd(true)} className="-mt-5 grid size-14 place-items-center rounded-2xl bg-brand text-white shadow-lg shadow-brand/30 transition active:scale-95">
-            <Plus size={26} />
+    <nav className="bottom-nav fixed inset-x-0 bottom-0 z-[45] border-t border-line bg-surface lg:hidden" style={{ transform: keyboard ? 'translateY(110%)' : 'translateZ(0)' }} aria-label="Navigation principale">
+      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-1">
+        <BottomItem to="/" end label="Accueil" icon={<House size={21} />} />
+        <BottomItem to="/seances" label="Séances" icon={<ListChecks size={21} />} active={trainingActive} />
+        <div className="flex justify-center">
+          <button type="button" aria-label="Ajouter une séance, une nuit ou une course" onClick={() => setQuickAdd(true)} className="grid size-12 place-items-center rounded-2xl bg-brand text-white shadow-md shadow-brand/25 transition active:scale-95">
+            <Plus size={24} />
           </button>
         </div>
-        <NavLink to="/repas" className={({ isActive }) => item(isActive)}>
-          <Utensils size={22} />
-          Repas
-        </NavLink>
-        <button type="button" onClick={() => setMore(true)} className={item(moreActive)}>
-          <Ellipsis size={22} />
+        <BottomItem to="/repas" label="Repas" icon={<Utensils size={21} />} />
+        <button type="button" onClick={() => setMore(true)} className={clsx('flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium', moreActive ? 'text-ink' : 'text-ink-3')}>
+          <span className={clsx('grid h-7 w-12 place-items-center rounded-full', moreActive && 'bg-surface-3')}>
+            <Ellipsis size={21} />
+          </span>
           Plus
         </button>
       </div>
@@ -289,7 +317,7 @@ export function Toast() {
   const toast = useUi((s) => s.toast)
   if (!toast) return null
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:bottom-6" role="status" aria-live="polite">
+    <div className="toast-pos pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4" role="status" aria-live="polite">
       <div className="animate-pop flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-bg shadow-xl">
         {toast.tone === 'error' ? <TriangleAlert size={16} className="text-warn" /> : <CircleCheck size={16} className="text-good" />}
         {toast.text}
@@ -301,6 +329,7 @@ export function Toast() {
 /** Onglets partagés entre Course / Renfo / Muscu */
 export function TrainingTabs() {
   const tabs = [
+    { to: '/seances', label: 'Semaine', icon: <ListChecks size={15} />, accent: 'brand' as Accent },
     { to: '/course', label: 'Course', icon: <Footprints size={15} />, accent: 'run' as Accent },
     { to: '/renfo', label: 'Renfo', icon: <Activity size={15} />, accent: 'renfo' as Accent },
     { to: '/muscu', label: 'Muscu', icon: <Dumbbell size={15} />, accent: 'muscu' as Accent },
@@ -308,7 +337,7 @@ export function TrainingTabs() {
   return (
     <div className="mb-5 flex rounded-xl bg-surface-3 p-1 lg:hidden">
       {tabs.map((t) => (
-        <NavLink key={t.to} to={t.to} className={({ isActive }) => clsx('flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-sm font-medium transition', isActive ? 'bg-surface shadow-sm' : 'text-ink-2')}>
+        <NavLink key={t.to} to={t.to} className={({ isActive }) => clsx('flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[13px] font-medium transition sm:gap-1.5 sm:text-sm', isActive ? 'bg-surface shadow-sm' : 'text-ink-2')}>
           {({ isActive }) => (
             <>
               <span className={isActive ? ACCENT_TEXT[t.accent] : ''}>{t.icon}</span>

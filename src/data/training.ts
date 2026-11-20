@@ -1,4 +1,5 @@
 import type { MuscuExercise, RenfoFocus, RenfoTemplate } from '../types'
+import { RUNNER_EXERCISES } from './runnerStrength'
 
 export const RENFO_FOCUS_LABEL: Record<RenfoFocus, string> = {
   gainage: 'Gainage',
@@ -109,73 +110,101 @@ export const BUILTIN_RENFO: RenfoTemplate[] = [
 ]
 
 export const MUSCU_EXERCISES = [
-  'Squat',
-  'Soulevé de terre',
-  'Soulevé de terre roumain',
-  'Développé couché',
-  'Développé incliné haltères',
-  'Développé militaire',
-  'Tractions',
-  'Tirage vertical',
-  'Rowing barre',
-  'Rowing haltère',
-  'Fentes bulgares',
-  'Hip thrust',
-  'Presse à cuisses',
-  'Leg curl',
-  'Leg extension',
-  'Mollets debout',
-  'Step-up haltères',
-  'Dips',
-  'Pompes lestées',
-  'Curl biceps',
-  'Extension triceps',
-  'Élévations latérales',
-  'Face pull',
-  'Gainage lesté',
-  'Good morning',
+  ...new Set([
+    ...RUNNER_EXERCISES.map((e) => e.name),
+    'Soulevé de terre',
+    'Développé couché',
+    'Développé incliné haltères',
+    'Développé militaire',
+    'Tractions',
+    'Tirage vertical',
+    'Rowing barre',
+    'Presse à cuisses',
+    'Leg curl',
+    'Leg extension',
+    'Step-up haltères',
+    'Dips',
+    'Curl biceps',
+    'Extension triceps',
+    'Élévations latérales',
+    'Face pull',
+    'Gainage lesté',
+    'Good morning',
+    'Pont fessier une jambe',
+  ]),
 ]
 
 export interface MuscuTemplate {
   title: string
   description: string
+  durationMin: number
   exercises: MuscuExercise[]
 }
 
 const s = (n: number, reps: number, weightKg = 0) => Array.from({ length: n }, () => ({ reps, weightKg }))
 
+/** Programmes de musculation pensés pour la course à pied (charges à compléter selon ton niveau) */
 export const MUSCU_TEMPLATES: MuscuTemplate[] = [
   {
-    title: 'Full body coureur — A',
-    description: 'Force des jambes et de la chaîne postérieure, sans fatiguer pour la course.',
+    title: 'Force coureur A — jambes',
+    description: 'Charges lourdes, peu de répétitions : plus de force sans prendre de masse. À placer le jour d’une séance de qualité, après la course.',
+    durationMin: 50,
     exercises: [
-      { name: 'Squat', sets: s(3, 6) },
+      { name: 'Squat', sets: s(4, 6) },
       { name: 'Soulevé de terre roumain', sets: s(3, 8) },
       { name: 'Fentes bulgares', sets: s(3, 8) },
-      { name: 'Tractions', sets: s(3, 6) },
       { name: 'Mollets debout', sets: s(3, 12) },
+      { name: 'Copenhagen plank (secondes)', sets: s(3, 25) },
     ],
   },
   {
-    title: 'Full body coureur — B',
-    description: 'Poussée, tirage et stabilité de hanche.',
+    title: 'Force coureur B — hanches & mollets',
+    description: 'Fessiers, ischios et mollets : les zones qui encaissent le plus en course. Idéal 2 à 3 jours après la séance A.',
+    durationMin: 45,
     exercises: [
       { name: 'Hip thrust', sets: s(3, 8) },
-      { name: 'Step-up haltères', sets: s(3, 8) },
-      { name: 'Développé couché', sets: s(3, 8) },
-      { name: 'Rowing haltère', sets: s(3, 10) },
-      { name: 'Gainage lesté', sets: s(3, 1) },
+      { name: 'Step-up', sets: s(3, 10) },
+      { name: 'Nordic hamstring curl', sets: s(3, 5) },
+      { name: 'Mollets assis', sets: s(3, 15) },
+      { name: 'Pallof press', sets: s(3, 10) },
     ],
   },
   {
-    title: 'Haut du corps',
-    description: 'Posture et bras pour une course plus économique.',
+    title: 'Spécial Backyard — endurance de force',
+    description: 'Charges modérées et séries longues pour tenir des heures debout, en côte comme sur le plat.',
+    durationMin: 45,
     exercises: [
+      { name: 'Squat', sets: s(3, 12) },
+      { name: 'Soulevé de terre sur une jambe', sets: s(3, 10) },
+      { name: 'Step-up', sets: s(3, 12) },
+      { name: 'Marche du fermier (mètres)', sets: s(4, 30) },
+      { name: 'Mollets debout', sets: s(3, 20) },
+      { name: 'Dead bug', sets: s(3, 10) },
+    ],
+  },
+  {
+    title: 'Express maison, sans matériel',
+    description: '30 minutes dans ta chambre, au poids du corps. Parfait les semaines chargées.',
+    durationMin: 30,
+    exercises: [
+      { name: 'Squat', sets: s(3, 20) },
+      { name: 'Fentes bulgares', sets: s(3, 12) },
+      { name: 'Pont fessier une jambe', sets: s(3, 12) },
+      { name: 'Mollets debout', sets: s(3, 20) },
+      { name: 'Gainage latéral avec abduction', sets: s(3, 10) },
+      { name: 'Pompes', sets: s(3, 12) },
+    ],
+  },
+  {
+    title: 'Haut du corps & posture',
+    description: 'Dos, épaules et gainage pour garder une posture droite en fin de course.',
+    durationMin: 40,
+    exercises: [
+      { name: 'Rowing haltère', sets: s(3, 10) },
+      { name: 'Pompes', sets: s(3, 12) },
       { name: 'Développé militaire', sets: s(3, 8) },
-      { name: 'Tirage vertical', sets: s(3, 10) },
-      { name: 'Développé incliné haltères', sets: s(3, 10) },
       { name: 'Face pull', sets: s(3, 15) },
-      { name: 'Curl biceps', sets: s(3, 12) },
+      { name: 'Marche du fermier (mètres)', sets: s(3, 30) },
     ],
   },
 ]

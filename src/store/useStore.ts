@@ -209,7 +209,7 @@ export function snapshot(): AppData {
 }
 
 // ── État d'interface (non persisté) ─────────────────────────
-export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned'
+export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned' | 'goals'
 
 export type CorosStatus =
   | { state: 'unavailable' }

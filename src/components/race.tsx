@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
-import { ArrowRight, Flag, MapPin, Timer } from 'lucide-react'
+import { ArrowRight, Flag, MapPin, Pencil, Timer } from 'lucide-react'
 import type { Race } from '../types'
 import { daysBetween, fmtDateLong, fmtDuration, fmtNum, fmtPace, capitalize, todayISO } from '../lib/format'
 import { RACE_KIND_LABEL, loopKmOf, predictTime, prepPhase, raceDistanceKm, type Performance } from '../lib/running'
@@ -42,7 +42,7 @@ export function PhaseStepper({ days }: { days: number }) {
       {PHASES.map((p, i) => (
         <div key={p.key}>
           <div className={clsx('h-1.5 rounded-full', i < idx ? 'bg-race/45' : i === idx ? 'bg-race' : 'bg-surface-3')} />
-          <p className={clsx('mt-1.5 truncate text-[11px]', i === idx ? 'font-semibold text-ink' : 'text-ink-3')}>{p.label}</p>
+          <p className={clsx('mt-1.5 truncate text-[10px] sm:text-[11px]', i === idx ? 'font-semibold text-ink' : 'text-ink-3')}>{p.label}</p>
         </div>
       ))}
     </div>
@@ -96,9 +96,14 @@ export function NextRaceCard({ race, perfs, compact }: { race?: Race; perfs: Per
             </span>
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-5xl font-bold leading-none tracking-tight">{days}</div>
-          <div className="mt-1 text-xs font-medium uppercase tracking-wider text-ink-3">{days > 1 ? 'jours' : 'jour'}</div>
+        <div className="flex flex-col items-end gap-2 text-right">
+          <div>
+            <div className="text-5xl font-bold leading-none tracking-tight">{days}</div>
+            <div className="mt-1 text-xs font-medium uppercase tracking-wider text-ink-3">{days > 1 ? 'jours' : 'jour'}</div>
+          </div>
+          <Button size="sm" icon={<Pencil size={14} />} onClick={() => openForm('race', race)}>
+            Modifier
+          </Button>
         </div>
       </div>
 
@@ -112,8 +117,10 @@ export function NextRaceCard({ race, perfs, compact }: { race?: Race; perfs: Per
           <p className="mt-0.5 text-sm font-semibold">{phase.label}</p>
           <p className="mt-0.5 text-xs text-ink-2">{phase.advice}</p>
         </div>
-        <div className="rounded-xl bg-surface-2 p-3">
-          <p className="text-xs text-ink-3">Objectif</p>
+        <button type="button" onClick={() => openForm('race', race)} className="group rounded-xl bg-surface-2 p-3 text-left transition hover:bg-surface-3" title="Modifier l’objectif">
+          <p className="flex items-center justify-between text-xs text-ink-3">
+            Objectif <Pencil size={12} className="opacity-60 group-hover:opacity-100" />
+          </p>
           {race.kind === 'backyard' ? (
             <>
               <p className="mt-0.5 text-sm font-semibold">{race.goalLoops ?? '?'} boucles en 1 h max</p>
@@ -127,9 +134,9 @@ export function NextRaceCard({ race, perfs, compact }: { race?: Race; perfs: Per
               <p className="mt-0.5 text-xs text-ink-2">Allure cible {fmtPace(goalPace)} /km</p>
             </>
           ) : (
-            <p className="mt-0.5 text-sm text-ink-2">Finir avec le sourire 😄</p>
+            <p className="mt-0.5 text-sm text-ink-2">Définis un temps visé 🎯</p>
           )}
-        </div>
+        </button>
         {!compact && (
           <div className="rounded-xl bg-surface-2 p-3">
             <p className="flex items-center gap-1 text-xs text-ink-3">

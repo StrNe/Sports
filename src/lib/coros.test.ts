@@ -155,3 +155,52 @@ describe('sauvegarde en ligne', () => {
     expect(stableStringify({ b: 1, a: [1, { d: 2, c: 3 }] })).toBe(stableStringify({ a: [1, { c: 3, d: 2 }], b: 1 }))
   })
 })
+
+describe('sommeil enrichi', () => {
+  it('lit le bilan VFC et ignore la série détaillée', async () => {
+    const { parseSleepHrv } = await import('./coros')
+    const text = `Sleep HRV — 2026-03-01 to 2026-03-07
+========================
+
+HRV Assessment — Last 7 days
+========================
+
+2026-03-07:
+  HRV Avg: 41 ms — Normal
+  Normal Range: 36 - 48 ms
+  Baseline: 42 ms
+2026-03-06:
+  HRV Avg: 30 ms — Below normal
+  Normal Range: 36 - 48 ms
+  Baseline: 42 ms
+2026-03-05:
+  No data
+
+Sleep HRV Time Series — Last 7 days
+========================
+
+2026-03-07:
+  timestamp=1, timezone=4, hrv=22 ms, status=4, confidence=100000`
+    expect(parseSleepHrv(text)).toEqual({
+      '2026-03-07': { avg: 41, status: 'normal', low: 36, high: 48, baseline: 42 },
+      '2026-03-06': { avg: 30, status: 'bas', low: 36, high: 48, baseline: 42 },
+    })
+  })
+  it('phases et réveils', () => {
+    const s = parseSleep(`2026-03-09\nSleep Score: 70\nMain Sleep (asleep): 7h 0min\nDeep Sleep Ratio: 12%\nLight Sleep Ratio: 60%\nREM Ratio: 20%\nAwake Time: 30 min\nAwake Count (>5 min): 2\nMain Sleep Window: 2026-03-08 23:30 - 2026-03-09 07:00\nNaps Total: 0 min`)
+    expect(s[0]).toMatchObject({ lightPct: 60, awakeCount: 2, durationMin: 420 })
+  })
+  it('moyennes par jour (siestes comprises) et par jour de la semaine', async () => {
+    const { sleepStats, sleepByWeekday } = await import('./insights')
+    const nights = [
+      { id: 'a', date: '2026-03-09', durationMin: 420, quality: 3, napMin: 60 }, // lundi
+      { id: 'b', date: '2026-03-08', durationMin: 540, quality: 4 }, // dimanche
+    ]
+    const st = sleepStats(nights, 480, 7, '2026-03-09')
+    expect(st.avgDailyMin).toBe(510)
+    expect(st.avgMin).toBe(480)
+    const wd = sleepByWeekday(nights, 8, '2026-03-09')
+    expect(wd[0]).toMatchObject({ label: 'Lun', count: 1, nightMin: 420, napMin: 60 })
+    expect(wd[6]).toMatchObject({ label: 'Dim', count: 1, nightMin: 540 })
+  })
+})

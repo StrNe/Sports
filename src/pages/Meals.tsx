@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore'
 import { Badge, Button, Callout, Card, IconButton, PageHeader, Segmented, Select } from '../components/ui'
 import { addDaysISO, capitalize, fmtDate, fmtDateLong, fmtNum, todayISO, weekStartISO } from '../lib/format'
 import { DAY_TYPES, DIET_LABEL, dailyTargets, detectDayType, mealFor, nextMeal, shoppingList } from '../lib/nutrition'
-import { MEAL_SLOTS, type Meal } from '../data/meals'
+import { MEAL_SLOTS, fmtPrice, type Meal } from '../data/meals'
 import type { DayType, MealSlot } from '../types'
 
 const DAY_TYPE_ORDER: DayType[] = ['repos', 'facile', 'intense', 'long', 'veille_course', 'jour_course']
@@ -40,13 +40,12 @@ function MealCard({ date, slot, label, time, meal, dayType, overridden }: { date
         <div className="min-w-0">
           <h3 className="font-semibold leading-snug">{meal.name}</h3>
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3 tabular">
-            <span>{meal.kcal} kcal</span>
-            <span>G {meal.carbs} g</span>
-            <span>P {meal.protein} g</span>
-            <span>L {meal.fat} g</span>
             <span className="inline-flex items-center gap-0.5">
-              <Clock size={11} /> {meal.prepMin} min
+              <Clock size={11} /> {meal.prepMin ? `${meal.prepMin} min` : 'prêt'}
             </span>
+            <span>≈ {fmtPrice(meal.price)}</span>
+            <span>{meal.kcal} kcal</span>
+            <span>{meal.protein} g de protéines</span>
           </div>
         </div>
       </div>
@@ -95,7 +94,7 @@ export default function Meals() {
   const meta = DAY_TYPES[dt.type]
   const targets = dailyTargets(profile, dt.type)
   const meals = MEAL_SLOTS.map((s) => ({ ...s, meal: mealFor(date, s.key, dt.type, data) }))
-  const total = meals.reduce((a, m) => ({ kcal: a.kcal + (m.meal?.kcal ?? 0), carbs: a.carbs + (m.meal?.carbs ?? 0), protein: a.protein + (m.meal?.protein ?? 0) }), { kcal: 0, carbs: 0, protein: 0 })
+  const total = meals.reduce((a, m) => ({ kcal: a.kcal + (m.meal?.kcal ?? 0), carbs: a.carbs + (m.meal?.carbs ?? 0), protein: a.protein + (m.meal?.protein ?? 0), price: a.price + (m.meal?.price ?? 0) }), { kcal: 0, carbs: 0, protein: 0, price: 0 })
 
   const ws = weekStartISO(date)
   const week = useMemo(
@@ -119,7 +118,7 @@ export default function Meals() {
         title="Repas"
         subtitle={
           <>
-            Idées adaptées à ton entraînement · {DIET_LABEL[profile.diet]}
+            Repas simples et pas chers, adaptés à ton entraînement · {DIET_LABEL[profile.diet]}
             {profile.noGluten ? ', sans gluten' : ''}
             {profile.noLactose ? ', sans lactose' : ''} ·{' '}
             <Link to="/reglages" className="underline decoration-line underline-offset-2 hover:text-ink">
@@ -210,10 +209,11 @@ export default function Meals() {
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Callout icon="📊" title={`Total des idées : ${fmtNum(total.kcal)} kcal · ${total.carbs} g de glucides · ${total.protein} g de protéines`}>
+            <Callout icon="🧾" title={`Budget du jour ≈ ${fmtPrice(total.price)} · ${fmtNum(total.kcal)} kcal`}>
               {carbGap > 40
-                ? `Il manque environ ${Math.round(carbGap)} g de glucides pour atteindre ton repère du jour : ajoute une portion de féculents, du pain ou un fruit à un repas.`
+                ? `Il manque environ ${Math.round(carbGap)} g de glucides pour ton repère du jour : rajoute du pain, une banane ou une portion de pâtes/riz en plus.`
                 : 'Ces 4 repas couvrent bien tes besoins en glucides du jour. Ajuste les portions à ta faim.'}
+              <span className="mt-1 block text-xs">Astuce étudiant : cuisine le chili, le dahl ou les pâtes en 3 portions d’un coup.</span>
             </Callout>
             <Callout icon={meta.emoji} title="Conseils du jour">
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
@@ -239,7 +239,9 @@ export default function Meals() {
               className={clsx('rounded-2xl border bg-surface p-4 text-left transition hover:bg-surface-2', d.date === today ? 'border-brand/50' : 'border-line')}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold">{capitalize(fmtDate(d.date, 'EEEE d'))}</p>
+                <p className="font-semibold">
+                  {capitalize(fmtDate(d.date, 'EEEE d'))} <span className="text-xs font-normal text-ink-3">≈ {fmtPrice(d.meals.reduce((a, x) => a + (x.meal?.price ?? 0), 0))}</span>
+                </p>
                 <Badge accent="food">
                   {DAY_TYPES[d.type].emoji} {DAY_TYPES[d.type].label}
                 </Badge>
@@ -282,7 +284,9 @@ export default function Meals() {
               )
             })}
           </ul>
-          <p className="mt-4 text-xs text-ink-3">Liste générée à partir des 28 repas proposés cette semaine. Change un repas dans la vue « Jour » et la liste se met à jour.</p>
+          <p className="mt-4 text-xs text-ink-3">
+            Liste générée à partir des 28 repas proposés cette semaine (budget ≈ {fmtPrice(week.reduce((a, d) => a + d.meals.reduce((b, x) => b + (x.meal?.price ?? 0), 0), 0))}). Change un repas dans la vue « Jour » et la liste se met à jour.
+          </p>
           <div className="mt-3">
             <Button size="sm" variant="ghost" onClick={() => setView('semaine')}>
               Voir le menu de la semaine

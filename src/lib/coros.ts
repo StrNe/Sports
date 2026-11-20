@@ -5,7 +5,7 @@ import type { AppData, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunT
 import { addDaysISO, daysBetween, parseDuration, todayISO } from './format'
 
 export const COROS_SERVER = 'COROS'
-export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'queryRestingHeartRate', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview'] as const
+export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview'] as const
 export type CorosTool = (typeof COROS_TOOLS)[number]
 
 const RUN_SPORTS = new Set([100, 101, 102, 103])
@@ -125,10 +125,37 @@ export function parseSleep(text: string): SleepEntry[] {
       quality: qualityFromScore(score),
       score: score > 0 ? score : undefined,
       deepPct: Number(block.match(/Deep Sleep Ratio:\s*(\d+)%/)?.[1]) || undefined,
+      lightPct: Number(block.match(/Light Sleep Ratio:\s*(\d+)%/)?.[1]) || undefined,
       remPct: Number(block.match(/REM Ratio:\s*(\d+)%/)?.[1]) || undefined,
       awakeMin: parseHm(block.match(/Awake Time:\s*([^\n]+)/)?.[1]),
+      awakeCount: block.match(/Awake Count[^:]*:\s*(\d+)/) ? Number(block.match(/Awake Count[^:]*:\s*(\d+)/)![1]) : undefined,
       napMin: nap || undefined,
     })
+  }
+  return out
+}
+
+export interface HrvNight {
+  avg: number
+  status: 'normal' | 'bas' | 'haut'
+  low?: number
+  high?: number
+  baseline?: number
+}
+
+/** Bilan VFC nocturne (on ignore la série détaillée qui suit) */
+export function parseSleepHrv(text: string): Record<ISODate, HrvNight> {
+  const out: Record<ISODate, HrvNight> = {}
+  const summary = text.split(/Time Series/i)[0]
+  for (const m of summary.matchAll(/(\d{4}-\d{2}-\d{2}):\s*\n\s*HRV Avg:\s*(\d+)\s*ms(?:\s*[—–-]\s*([^\n]+))?(?:\n\s*Normal Range:\s*(\d+)\s*-\s*(\d+)\s*ms)?(?:\n\s*Baseline:\s*(\d+))?/g)) {
+    const label = (m[3] ?? '').toLowerCase()
+    out[m[1]] = {
+      avg: Number(m[2]),
+      status: /below|low|bas/.test(label) ? 'bas' : /above|high|haut/.test(label) ? 'haut' : 'normal',
+      low: m[4] ? Number(m[4]) : undefined,
+      high: m[5] ? Number(m[5]) : undefined,
+      baseline: m[6] ? Number(m[6]) : undefined,
+    }
   }
   return out
 }
@@ -244,7 +271,7 @@ async function fetchActivities(call: CorosCall, from: ISODate, to: ISODate, dept
   return items
 }
 
-export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; raceDates: Set<ISODate>; today?: ISODate; onStep?: (label: string) => void }): Promise<CorosFetchResult> {
+export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; raceDates: Set<ISODate>; today?: ISODate; hasHrv?: boolean; onStep?: (label: string) => void }): Promise<CorosFetchResult> {
   const today = opts.today ?? todayISO()
   const step = opts.onStep ?? (() => {})
 
@@ -262,7 +289,10 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
 
   // 2. Sommeil (par tranches de 60 jours) et FC de repos
   step('Sommeil')
-  const sleepFrom = opts.lastDate ? addDaysISO(opts.lastDate, -3) : addDaysISO(today, -365)
+  // Sans VFC encore enregistrée, on relit au moins 4 semaines pour la compléter
+  const backfillHrv = !opts.hasHrv
+  const sleepFrom0 = opts.lastDate ? addDaysISO(opts.lastDate, -3) : addDaysISO(today, -365)
+  const sleepFrom = backfillHrv && sleepFrom0 > addDaysISO(today, -27) ? addDaysISO(today, -27) : sleepFrom0
   const sleep: SleepEntry[] = []
   for (let start = sleepFrom; start <= today; start = addDaysISO(start, 60)) {
     const end = addDaysISO(start, 59) < today ? addDaysISO(start, 59) : today
@@ -273,6 +303,26 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
   sleep.forEach((s) => {
     if (rhr[s.date]) s.restingHr = rhr[s.date]
   })
+  // VFC nocturne : 7 jours maximum par appel ; 4 semaines la première fois
+  const hrvFrom = backfillHrv ? addDaysISO(today, -27) : sleepFrom
+  try {
+    const hrv: Record<ISODate, HrvNight> = {}
+    for (let start = hrvFrom; start <= today; start = addDaysISO(start, 7)) {
+      const end = addDaysISO(start, 6) < today ? addDaysISO(start, 6) : today
+      Object.assign(hrv, parseSleepHrv(await call('querySleepHrv', { startDate: compact(start), endDate: compact(end) })))
+    }
+    sleep.forEach((s) => {
+      const h = hrv[s.date]
+      if (!h) return
+      s.hrv = h.avg
+      s.hrvStatus = h.status
+      s.hrvLow = h.low
+      s.hrvHigh = h.high
+      s.hrvBaseline = h.baseline
+    })
+  } catch {
+    /* VFC indisponible : le reste du sommeil est quand même importé */
+  }
 
   // 3. Plan d'entraînement : 2 semaines en arrière, 4 mois devant
   step('Plan')
