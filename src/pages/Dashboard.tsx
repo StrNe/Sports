@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
-import { BatteryCharging, CalendarDays, Check, ChevronRight, Footprints, Gauge, Moon, Plus, SprayCan, Utensils } from 'lucide-react'
+import { BatteryCharging, CalendarDays, Check, ChevronRight, ClipboardCheck, Footprints, Gauge, Moon, Plus, SprayCan, Utensils } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
 import { ACCENT_BG_SOFT, ACCENT_TEXT, Button, Card, type Accent } from '../components/ui'
 import { MiniBars } from '../components/charts'
@@ -11,7 +11,10 @@ import { addDaysISO, capitalize, fmtDate, fmtDateLong, fmtDuration, fmtKm, fmtMi
 import { RUN_TYPES, runsInRange, weeklyRunSummary } from '../lib/running'
 import { lastSleep, readiness, recoveryView, sleepStats } from '../lib/insights'
 import { dayEnergy, dayIntake } from '../lib/energy'
-import { choreCounts, choresPerDay } from '../lib/chores'
+import { choreCounts, choreRhythms, choresPerDay, dueSoon } from '../lib/chores'
+import { plannedForRun } from '../lib/workout'
+import { pendingReview } from '../lib/review'
+import { SessionCheckView, WorkoutNotes, WorkoutSteps } from '../components/workout'
 import type { PlannedWorkout } from '../types'
 
 const KIND_COLOR: Record<string, string> = { run: 'var(--run)', renfo: 'var(--renfo)', muscu: 'var(--muscu)', repos: 'var(--sleep)', autre: 'var(--brand)' }
@@ -74,7 +77,9 @@ function TodaySession() {
   const chips: string[] = main
     ? [main.kind === 'run' && main.runType ? RUN_TYPES[main.runType].label : '', main.targetDistanceKm ? `${fmtKm(main.targetDistanceKm)} km` : '', main.targetDurationMin ? fmtMinutes(main.targetDurationMin) : '', fromCoros ? 'Plan COROS' : ''].filter(Boolean)
     : []
-  const doneStats = run ? [`${fmtKm(run.distanceKm)} km`, fmtDuration(run.durationSec), `${fmtPace(run.durationSec / run.distanceKm)} /km`, run.avgHr ? `${run.avgHr} bpm` : ''].filter(Boolean) : renfoToday[0] ? [`${renfoToday[0].durationMin} min`] : muscuToday[0] ? [`${muscuToday[0].durationMin} min`] : []
+  // La sortie qui correspond à la séance prévue (pour le prévu / réalisé)
+  const doneRun = runsToday.find((r) => main && plannedForRun(r, data.planned)?.id === main.id) ?? run
+  const doneStats = doneRun ? [`${fmtKm(doneRun.distanceKm)} km`, fmtDuration(doneRun.durationSec), `${fmtPace(doneRun.durationSec / doneRun.distanceKm)} /km`, doneRun.avgHr ? `${doneRun.avgHr} bpm` : ''].filter(Boolean) : renfoToday[0] ? [`${renfoToday[0].durationMin} min`] : muscuToday[0] ? [`${muscuToday[0].durationMin} min`] : []
 
   return (
     <section
@@ -102,6 +107,13 @@ function TodaySession() {
             </div>
           )}
           {main?.description && !fromCoros && <p className="mt-3 line-clamp-2 text-sm text-ink-2">{main.description}</p>}
+          {/* Avant la séance : déroulé et consignes du plan */}
+          {!done && main?.steps && main.steps.length > 0 && <WorkoutSteps className="mt-4 max-w-xl" blocks={main.steps} />}
+          {!done && main?.notes && (
+            <div className="mt-3 max-w-xl">
+              <WorkoutNotes text={main.notes} />
+            </div>
+          )}
           {done ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <StatusPill tone="good">Séance faite</StatusPill>
@@ -110,6 +122,12 @@ function TodaySession() {
               ))}
             </div>
           ) : null}
+          {/* Après la séance : prévu / réalisé */}
+          {done && doneRun && (
+            <div className="mt-4 max-w-xl rounded-2xl bg-surface-2/70 p-3">
+              <SessionCheckView run={doneRun} planned={plannedForRun(doneRun, data.planned)} onlyWork />
+            </div>
+          )}
           <div className="mt-5 flex flex-wrap items-center gap-2">
             {main && !isDone(main) && (
               <Button variant="primary" icon={<Check size={16} />} onClick={() => complete(main)}>
@@ -289,6 +307,7 @@ function KeyFigures() {
   // Tâches
   const chores = choreCounts(data.chores, today)
   const perDay = choresPerDay(data.chores, ws, today)
+  const choresDue = dueSoon(choreRhythms(data.chores, data.choreRhythms, today)).length
   // Sommeil
   const goal = profile.sleepGoalMin || 480
   const ss = sleepStats(data.sleep, goal, 7, today)
@@ -320,7 +339,7 @@ function KeyFigures() {
         <Bar pct={energy.target ? (intake.kcal / energy.target) * 100 : 0} color={over && -left > energy.target * 0.1 ? TONE_COLOR.warning : 'var(--food)'} label="Calories mangées par rapport à l’objectif du jour" />
       </Tile>
 
-      <Tile to="/menage" icon={<SprayCan size={16} />} accent="chore" label="Tâches ménagères" value={String(chores.today)} unit={`aujourd’hui`} sub={`${chores.week} cette semaine · ${chores.month} ce mois-ci`}>
+      <Tile to="/menage" icon={<SprayCan size={16} />} accent="chore" label="Tâches ménagères" value={String(chores.today)} unit={`aujourd’hui`} sub={`${chores.week} cette semaine · ${choresDue ? `${choresDue} à faire bientôt` : `${chores.month} ce mois-ci`}`}>
         <MiniBars
           values={weekDays.map((d) => (d > today ? null : (perDay.get(d) ?? 0)))}
           color="var(--chore)"
@@ -341,6 +360,8 @@ export default function Dashboard() {
   const today = todayISO()
   const { runs, renfo, muscu, sleep, races, profile } = data
   const empty = !runs.length && !renfo.length && !muscu.length && !sleep.length && !races.length
+  // Le lundi (et jusqu'à ce qu'il soit ouvert) : le bilan de la semaine passée
+  const review = pendingReview(data, today)
 
   return (
     <div>
@@ -350,6 +371,13 @@ export default function Dashboard() {
           {greeting()}
           {profile.name ? `, ${profile.name}` : ''}
         </h1>
+        {review && (
+          <Link to="/bilan" className="mt-3 inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-brand/15">
+            <ClipboardCheck size={15} className="text-brand" />
+            Ton bilan de la semaine est prêt
+            <ChevronRight size={15} className="text-ink-3" />
+          </Link>
+        )}
       </header>
 
       {empty && (

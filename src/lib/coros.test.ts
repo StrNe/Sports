@@ -232,3 +232,20 @@ describe('récupération et charge COROS', () => {
     expect(res.status).toEqual({})
   })
 })
+
+describe('sauvegarde en ligne sur la durée', () => {
+  it('découpe un document trop gros et le recompose à l’identique', async () => {
+    const { chunkItems, MAX_DOC_BYTES } = await import('./cloud')
+    const d = emptyData()
+    // 3 ans de sorties très détaillées : bien plus que la taille d'un document
+    d.runs = Array.from({ length: 1500 }, (_, i) => ({ id: `r${i}`, date: `2026-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`, type: 'ef' as const, distanceKm: 10, durationSec: 3600, notes: 'é'.repeat(300) }))
+    const docs = toDocs(d)
+    const runDocs = Object.keys(docs).filter((k) => k.startsWith('runs-'))
+    expect(runDocs.length).toBeGreaterThan(1)
+    expect(runDocs).toContain('runs-2026-p2')
+    for (const k of runDocs) expect(new TextEncoder().encode(JSON.stringify(docs[k])).length).toBeLessThanOrEqual(MAX_DOC_BYTES)
+    const back = fromDocs(Object.entries(docs).map(([id, data]) => ({ id, data })))
+    expect(back.runs).toHaveLength(1500)
+    expect(chunkItems([])).toEqual([[]])
+  })
+})

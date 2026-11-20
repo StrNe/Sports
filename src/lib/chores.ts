@@ -1,7 +1,7 @@
 // Tâches ménagères : décomptes et suggestions à partir de ce que tu as déjà noté.
 
-import type { ChoreEntry, ISODate } from '../types'
-import { addDaysISO, todayISO, weekStartISO } from './format'
+import type { ChoreEntry, ChoreRhythmSetting, ISODate } from '../types'
+import { addDaysISO, daysBetween, todayISO, weekStartISO } from './format'
 
 export interface ChoreCounts {
   today: number
@@ -36,6 +36,9 @@ export function choreCounts(chores: ChoreEntry[], today = todayISO()): ChoreCoun
   }
   return c
 }
+
+/** Nom de tâche normalisé (casse et accents ignorés) */
+export const choreKey = (s: string) => key(s)
 
 const key = (s: string) =>
   s
@@ -133,3 +136,98 @@ export function choresCsv(chores: ChoreEntry[]): string {
   const rows = [...chores].sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? '')).map((c) => [c.date, c.time ?? '', esc(c.name), esc(c.note)].join(';'))
   return ['date;heure;tâche;note', ...rows].join('\n')
 }
+
+// ── Tâches régulières ───────────────────────────────────────
+export interface ChoreRhythm {
+  key: string
+  name: string
+  /** Intervalle visé, en jours */
+  everyDays: number
+  /** Déduit de l'historique, ou réglé à la main */
+  source: 'auto' | 'manuel'
+  last?: ISODate
+  due: ISODate
+  /** Jours avant l'échéance (négatif : en retard) */
+  inDays: number
+  count: number
+}
+
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b)
+  const m = Math.floor(s.length / 2)
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2)
+}
+
+/**
+ * Rythme de chaque tâche : réglé à la main, sinon déduit des 6 derniers intervalles
+ * (au moins 3 fois, et pas les tâches quasi quotidiennes comme la vaisselle).
+ */
+export function choreRhythms(chores: ChoreEntry[], settings: Record<string, ChoreRhythmSetting> = {}, today = todayISO()): ChoreRhythm[] {
+  const groups = new Map<string, { name: string; dates: Set<ISODate> }>()
+  for (const c of chores) {
+    const k = key(c.name)
+    const g = groups.get(k) ?? { name: c.name, dates: new Set<ISODate>() }
+    g.dates.add(c.date)
+    groups.set(k, g)
+  }
+  const out: ChoreRhythm[] = []
+  for (const [k, g] of groups) {
+    const s = settings[k]
+    if (s?.off) continue
+    const dates = [...g.dates].filter((d) => d <= today).sort()
+    if (!dates.length) continue
+    let every = s?.everyDays
+    let source: ChoreRhythm['source'] = 'manuel'
+    if (!every) {
+      if (dates.length < 3) continue
+      const gaps = dates.slice(1).map((d, i) => daysBetween(dates[i], d)).slice(-6)
+      const m = median(gaps)
+      if (m < 3) continue
+      every = m
+      source = 'auto'
+    }
+    const last = dates[dates.length - 1]
+    const due = addDaysISO(last, every)
+    out.push({ key: k, name: s?.name ?? g.name, everyDays: every, source, last, due, inDays: daysBetween(today, due), count: dates.length })
+  }
+  // Tâches régulières ajoutées à la main mais jamais faites : à faire dès maintenant
+  for (const [k, s] of Object.entries(settings)) {
+    if (s.off || !s.everyDays || groups.has(k)) continue
+    out.push({ key: k, name: s.name, everyDays: s.everyDays, source: 'manuel', due: today, inDays: 0, count: 0 })
+  }
+  return out.sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name))
+}
+
+/** En retard ou à faire dans les prochains jours */
+export function dueSoon(rhythms: ChoreRhythm[], horizon = 2): ChoreRhythm[] {
+  return rhythms.filter((r) => r.inDays <= horizon)
+}
+
+/** 7 → « chaque semaine », 13 → « toutes les 2 semaines », 61 → « tous les 2 mois » */
+export function fmtEvery(days: number): string {
+  if (days === 1) return 'chaque jour'
+  const w = Math.round(days / 7)
+  if (days >= 6 && w <= 8 && Math.abs(days - 7 * w) <= 1) return w === 1 ? 'chaque semaine' : `toutes les ${w} semaines`
+  const m = Math.round(days / 30.4)
+  if (days >= 27 && Math.abs(days - 30.4 * m) <= 4) return m === 1 ? 'chaque mois' : m === 12 ? 'chaque année' : `tous les ${m} mois`
+  return `tous les ${days} jours`
+}
+
+export function fmtDue(inDays: number): string {
+  if (inDays < -1) return `en retard de ${-inDays} jours`
+  if (inDays === -1) return 'en retard d’un jour'
+  if (inDays === 0) return 'aujourd’hui'
+  if (inDays === 1) return 'demain'
+  return `dans ${inDays} jours`
+}
+
+/** Rythmes proposés dans les réglages */
+export const RHYTHM_CHOICES: { days: number; label: string }[] = [
+  { days: 7, label: 'Chaque semaine' },
+  { days: 14, label: 'Toutes les 2 semaines' },
+  { days: 30, label: 'Chaque mois' },
+  { days: 61, label: 'Tous les 2 mois' },
+  { days: 91, label: 'Tous les 3 mois' },
+  { days: 182, label: 'Tous les 6 mois' },
+  { days: 365, label: 'Chaque année' },
+]

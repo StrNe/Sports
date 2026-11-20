@@ -40,6 +40,49 @@ export interface Run {
   notes?: string
   source?: 'manuel' | 'coros' | 'fit' | 'gpx' | 'tcx'
   externalId?: string
+  /** Type de sport COROS (100 course, 101 tapis, 102 trail…) pour relire les tours */
+  corosSport?: number
+  /** Comparaison avec la séance structurée prévue ce jour-là */
+  check?: SessionCheck
+}
+
+/** Étape d'une séance structurée (plan COROS) */
+export interface WorkoutStep {
+  kind: 'warmup' | 'work' | 'recovery' | 'cooldown' | 'other'
+  /** Durée visée (s) ou distance visée (m) ; aucune des deux = étape libre (bouton tour) */
+  durationSec?: number
+  distanceM?: number
+  /** Cible : FC en bpm ou allure en s/km */
+  target?: { type: 'hr' | 'pace'; min: number; max: number }
+}
+
+export interface WorkoutRepeat {
+  repeat: number
+  steps: WorkoutStep[]
+}
+
+export type WorkoutBlock = WorkoutStep | WorkoutRepeat
+
+/** Résultat d'une étape : ce qui était prévu et ce qui a été fait */
+export interface StepResult {
+  kind: WorkoutStep['kind']
+  /** Numéro de répétition dans un bloc répété */
+  rep?: number
+  target?: WorkoutStep['target']
+  plannedSec?: number
+  plannedM?: number
+  /** Réalisé : durée (s), distance (m), FC moyenne */
+  sec: number
+  m: number
+  hr?: number
+  verdict?: 'in' | 'fast' | 'slow' | 'low' | 'high'
+}
+
+export interface SessionCheck {
+  results: StepResult[]
+  /** false : les tours de la montre ne correspondent pas aux étapes prévues */
+  aligned: boolean
+  at: number
 }
 
 export type RenfoFocus = 'gainage' | 'bas_du_corps' | 'pliometrie' | 'mobilite' | 'prevention' | 'complet' | 'haut_du_corps'
@@ -180,6 +223,10 @@ export interface PlannedWorkout {
   targetDistanceKm?: number
   targetDurationMin?: number
   done?: boolean
+  /** Structure de la séance (étapes, répétitions, cibles) lue sur COROS */
+  steps?: WorkoutBlock[]
+  /** Consignes du plan d'entraînement */
+  notes?: string
 }
 
 export type Diet = 'omnivore' | 'pescetarien' | 'vegetarien' | 'vegan'
@@ -260,6 +307,15 @@ export interface DailyActivity {
   exerciseMin?: number
 }
 
+/** Réglage d'une tâche régulière */
+export interface ChoreRhythmSetting {
+  name: string
+  /** Rythme choisi, en jours ; absent = rythme déduit de l'historique */
+  everyDays?: number
+  /** Ne plus la rappeler */
+  off?: boolean
+}
+
 /** Tâche ménagère faite */
 export interface ChoreEntry {
   id: string
@@ -303,6 +359,8 @@ export interface AppData {
   weights: WeightEntry[]
   /** Tâches ménagères faites */
   chores: ChoreEntry[]
+  /** Rythme des tâches régulières, par nom de tâche normalisé */
+  choreRhythms: Record<string, ChoreRhythmSetting>
   /** Type de journée forcé pour la nutrition */
   dayTypeOverrides: Record<ISODate, DayType>
   theme: Theme
@@ -320,6 +378,8 @@ export interface SyncState {
   recovery?: CorosRecovery
   /** Dernière évaluation de la charge d'entraînement par la montre */
   load?: CorosLoad
+  /** Lundi de la dernière semaine dont le bilan a été ouvert */
+  reviewSeen?: ISODate
 }
 
 export interface CorosRecovery {

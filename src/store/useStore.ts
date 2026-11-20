@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { AppData, DayType, ISODate, PlannedWorkout, Profile, Run, SyncState, Theme } from '../types'
+import type { AppData, ChoreRhythmSetting, DayType, ISODate, PlannedWorkout, Profile, Run, SyncState, Theme } from '../types'
 import { BUILTIN_RENFO } from '../data/training'
 
 export const DATA_VERSION = 1
@@ -37,6 +37,7 @@ export function emptyData(): AppData {
     products: [],
     chores: [],
     dayTypeOverrides: {},
+    choreRhythms: {},
     theme: 'dark',
     sync: { corosAuto: true },
   }
@@ -51,6 +52,7 @@ interface Actions {
   setProfile: (p: Partial<Profile>) => void
   setTheme: (t: Theme) => void
   setDayTypeOverride: (date: ISODate, t: DayType | undefined) => void
+  setChoreRhythm: (key: string, r: ChoreRhythmSetting | undefined) => void
   replaceAll: (data: AppData) => void
   mergeAll: (data: Partial<AppData>) => { added: number }
   resetAll: () => void
@@ -76,6 +78,7 @@ export function normalizeData(input: Partial<AppData>): AppData {
     version: DATA_VERSION,
     profile: { ...base.profile, ...(input.profile ?? {}) },
     dayTypeOverrides: input.dayTypeOverrides ?? {},
+    choreRhythms: input.choreRhythms ?? {},
     // Sombre par défaut (l'ancien réglage « système » devient sombre)
     theme: input.theme === 'light' || input.theme === 'auto' ? input.theme : 'dark',
     sync: { corosAuto: true, ...(input.sync ?? {}) },
@@ -166,6 +169,14 @@ export const useStore = create<Store>()(
           return { dayTypeOverrides: next }
         }),
 
+      setChoreRhythm: (key, r) =>
+        set((s) => {
+          const next = { ...s.choreRhythms }
+          if (r) next[key] = r
+          else delete next[key]
+          return { choreRhythms: next }
+        }),
+
       replaceAll: (data) => set(normalizeData(data)),
 
       mergeAll: (data) => {
@@ -206,6 +217,8 @@ export const useStore = create<Store>()(
           patch.profile = profile as unknown as Profile
         }
         if (data.dayTypeOverrides) patch.dayTypeOverrides = { ...s.dayTypeOverrides, ...data.dayTypeOverrides }
+        // Réglages des tâches régulières : ceux de l'appli priment sur ceux importés
+        if (data.choreRhythms) patch.choreRhythms = { ...data.choreRhythms, ...s.choreRhythms }
         set(patch)
         return { added }
       },

@@ -4,6 +4,8 @@ import { useStore, useUi } from '../store/useStore'
 import type { ChoreEntry, MuscuExercise, MuscuSession, PersonalRecord, PlannedKind, PlannedWorkout, Race, RaceKind, RenfoExercise, RenfoFocus, RenfoSession, Run, RunType, Shoe, SleepEntry } from '../types'
 import { Button, Field, IconButton, Input, NumberInput, Rating, Select, Textarea } from './ui'
 import { FormShell, Row } from './formShell'
+import { SessionCheckView, WorkoutNotes, WorkoutSteps } from './workout'
+import { judgeWholeRun, plannedForRun } from '../lib/workout'
 import { CaloriesForm, FoodEntryForm, FoodForm } from './food'
 import { fmtDuration, fmtPace, fmtNum, paceSecPerKm, parseDuration, sleepDurationMin, todayISO, uid } from '../lib/format'
 import { BACKYARD_LOOP_KM, RACE_KIND_LABEL, RUN_TYPES, RUN_TYPE_ORDER, STANDARD_DISTANCES, loopKmOf } from '../lib/running'
@@ -61,6 +63,7 @@ export function RunForm({ initial }: { initial?: Partial<Run> & { plannedId?: st
   const set = <K extends keyof Run>(k: K, v: Run[K]) => setD((x) => ({ ...x, [k]: v }))
   const pace = paceSecPerKm(d.distanceKm, d.durationSec)
   const activeShoes = shoes.filter((s) => !s.retired || s.id === d.shoeId)
+  const plannedRun = editing ? plannedForRun(d, planned) : undefined
 
   const save = () => {
     const { plannedId, ...run } = d as Run & { plannedId?: string }
@@ -73,6 +76,14 @@ export function RunForm({ initial }: { initial?: Partial<Run> & { plannedId?: st
 
   return (
     <FormShell title={editing ? 'Modifier la course' : 'Nouvelle course'} onSave={save} onDelete={editing ? () => remove('runs', d.id) : undefined} canSave={d.distanceKm > 0 && d.durationSec > 0}>
+      {editing && plannedRun?.steps && (
+        <div className="rounded-xl bg-surface-2 p-3">
+          <p className="mb-2 text-xs text-ink-3">Séance prévue : {plannedRun.title}</p>
+          <SessionCheckView run={d} planned={plannedRun} />
+          {/* Pas encore de comparaison : on montre au moins le déroulé prévu */}
+          {!d.check && !judgeWholeRun(plannedRun.steps, d) && <WorkoutSteps blocks={plannedRun.steps} />}
+        </div>
+      )}
       <Row>
         <Field label="Date">
           <Input type="date" value={d.date} onChange={(e) => set('date', e.target.value)} required />
@@ -723,6 +734,13 @@ export function PlannedForm({ initial }: { initial?: Partial<PlannedWorkout> }) 
       }}
       onDelete={editing ? () => remove('planned', d.id) : undefined}
     >
+      {d.steps && d.steps.length > 0 && (
+        <div className="space-y-3 rounded-xl bg-surface-2 p-3">
+          <p className="text-xs text-ink-3">Déroulé prévu par ton plan COROS</p>
+          <WorkoutSteps blocks={d.steps} />
+          {d.notes && <WorkoutNotes text={d.notes} />}
+        </div>
+      )}
       <Row>
         <Field label="Date">
           <Input type="date" value={d.date} onChange={(e) => set('date', e.target.value)} />

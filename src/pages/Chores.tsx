@@ -8,6 +8,7 @@ import { addDaysISO, capitalize, daysBetween, fmtDate, todayISO, uid, weekStartI
 import { choreCounts, choreYears, choresCsv, choresPerDay, frequentChores, monthCounts, monthGrid, searchChores, splitChores } from '../lib/chores'
 import { downloadText } from '../lib/importers'
 import { inClaude } from '../lib/claude'
+import { RecurringChores } from '../components/choreRhythms'
 import type { ChoreEntry, ISODate } from '../types'
 
 const plural = (n: number) => `${n} tâche${n > 1 ? 's' : ''}`
@@ -188,6 +189,7 @@ export default function Chores() {
 
       {view === 'semaine' && (
         <>
+          <RecurringChores />
           <Card className="mt-4">
             <CardTitle icon={<Plus size={16} />} accent="chore" title="Noter une tâche faite" subtitle="Plusieurs d’un coup : sépare-les par des virgules" />
             <div className="mb-3 flex flex-wrap items-center gap-1.5">

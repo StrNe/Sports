@@ -12,6 +12,30 @@ const DATED = ['runs', 'renfo', 'muscu', 'sleep', 'planned', 'food', 'activity',
 /** Le journal alimentaire grossit vite : un document par mois au lieu d'un par an */
 const MONTHLY = new Set<string>(['food', 'chores'])
 
+/** Taille visée par document : la base refuse au-delà de 256 Kio, on garde de la marge */
+export const MAX_DOC_BYTES = 200_000
+
+const encoder = new TextEncoder()
+
+/** Coupe une liste en morceaux qui tiennent chacun dans un document (après des années de données) */
+export function chunkItems<T>(items: T[], max = MAX_DOC_BYTES): T[][] {
+  const out: T[][] = []
+  let cur: T[] = []
+  let size = 16
+  for (const it of items) {
+    const b = encoder.encode(JSON.stringify(it)).length + 1
+    if (cur.length && size + b > max) {
+      out.push(cur)
+      cur = []
+      size = 16
+    }
+    cur.push(it)
+    size += b
+  }
+  if (cur.length || !out.length) out.push(cur)
+  return out
+}
+
 /** JSON à clés triées, pour comparer des documents quel que soit l'ordre des champs */
 export function stableStringify(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(stableStringify).join(',')}]`
@@ -38,6 +62,7 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
       profile: d.profile,
       theme: d.theme,
       dayTypeOverrides: d.dayTypeOverrides,
+      choreRhythms: d.choreRhythms ?? {},
       races: d.races,
       records: d.records,
       shoes: d.shoes,
@@ -52,7 +77,8 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
       const y = (MONTHLY.has(k) ? it.date?.slice(0, 7) : it.date?.slice(0, 4)) || '0000'
       byYear.set(y, [...(byYear.get(y) ?? []), it])
     }
-    byYear.forEach((items, y) => (docs[`${k}-${y}`] = clean({ items })))
+    // Un document par période ; au-delà de la taille permise, des suites « -p2 », « -p3 »…
+    byYear.forEach((items, y) => chunkItems(clean(items)).forEach((part, i) => (docs[i ? `${k}-${y}-p${i + 1}` : `${k}-${y}`] = { items: part })))
   }
   return docs
 }

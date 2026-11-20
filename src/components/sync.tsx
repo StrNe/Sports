@@ -5,7 +5,7 @@ import { useStore, useUi } from '../store/useStore'
 import { inClaude, resultText, useCapability, type McpError } from '../lib/claude'
 import { COROS_SERVER, fetchCoros, type CorosCall } from '../lib/coros'
 import { startCloud } from '../lib/cloud'
-import { fmtDate, todayISO } from '../lib/format'
+import { addDaysISO, fmtDate, todayISO } from '../lib/format'
 import { Button, Callout, Card, CardTitle, Modal } from './ui'
 
 // ── Messages d'erreur COROS, un par situation ──────────────
@@ -68,12 +68,29 @@ export function runCorosSync(opts: { manual?: boolean; full?: boolean } = {}): P
         lastDate: opts.full ? undefined : st.sync?.corosLastDate,
         raceDates: new Set(st.races.map((r) => r.date)),
         hasHrv: st.sleep.some((s) => s.hrv != null),
+        // Sorties récentes pas encore comparées à leur séance prévue
+        recentRuns: st.runs.filter((r) => r.source === 'coros' && !r.check && r.date >= addDaysISO(today, -7)),
         onStep: (step) => useUi.getState().setCoros({ state: 'syncing', step }),
+      })
+      // Garde le détail déjà connu d'une séance quand COROS ne l'a pas renvoyé cette fois
+      const known = new Map(st.planned.map((p) => [p.id, p]))
+      res.data.planned = res.data.planned?.map((p) => {
+        const old = known.get(p.id)
+        if (p.steps || !old?.steps) return p
+        // Séance changée côté COROS : l'ancien déroulé ne vaut plus
+        return old.title === p.title ? { ...p, steps: old.steps, notes: old.notes } : { ...p, steps: undefined, notes: undefined }
       })
       // Une sortie enregistrée le jour d'une séance prévue la valide automatiquement
       const runDates = new Set([...st.runs, ...(res.data.runs ?? [])].map((r) => r.date))
       res.data.planned = res.data.planned?.map((p) => (p.kind === 'run' && p.date <= today && runDates.has(p.date) ? { ...p, done: true } : p))
       const { added } = useStore.getState().mergeAll(res.data)
+      // Prévu / réalisé des sorties structurées
+      const runsById = new Map(useStore.getState().runs.map((r) => [r.id, r]))
+      const checked = Object.entries(res.checks).flatMap(([id, check]) => {
+        const r = runsById.get(id)
+        return r ? [{ ...r, check }] : []
+      })
+      if (checked.length) useStore.getState().upsertMany('runs', checked)
       // Séances retirées du plan côté COROS (à partir d'aujourd'hui)
       const fresh = new Set(res.data.planned?.map((p) => p.id))
       const stale = useStore

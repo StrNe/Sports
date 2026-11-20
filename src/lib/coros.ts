@@ -1,11 +1,12 @@
 // Synchronisation avec COROS via le connecteur claude.ai (capacité `mcp` des artifacts).
 // Les outils COROS répondent en texte formaté : on le convertit en données Life.
 
-import type { AppData, CorosLoad, CorosRecovery, DailyActivity, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SleepEntry } from '../types'
+import type { AppData, CorosLoad, CorosRecovery, DailyActivity, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SessionCheck, SleepEntry } from '../types'
 import { addDaysISO, daysBetween, parseDuration, todayISO } from './format'
+import { attachCourses, compareSession, needsLapCheck, parseLaps, parsePlanCourses, parseScheduledCourse, plannedForRun, type CorosCourse } from './workout'
 
 export const COROS_SERVER = 'COROS'
-export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryDailyHealthData', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview', 'queryRecoveryStatus', 'queryTrainingLoadAssessment'] as const
+export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryDailyHealthData', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview', 'queryRecoveryStatus', 'queryTrainingLoadAssessment', 'queryTrainingPlanDetails', 'queryScheduledWorkoutDetails', 'queryActivityLapData'] as const
 export type CorosTool = (typeof COROS_TOOLS)[number]
 
 const RUN_SPORTS = new Set([100, 101, 102, 103])
@@ -94,7 +95,7 @@ export function activitiesToData(items: CorosActivity[]): { runs: Run[]; renfo: 
       const km = Math.round((a.distanceKm ?? 0) * 100) / 100
       if (km < 1 || !a.durationSec) continue
       const title = cleanTitle(a.title)
-      runs.push({ id, externalId: id, source: 'coros', date: a.date, type: runTypeFromTitle(title, a.sportType, km, a.durationSec), title, distanceKm: km, durationSec: a.durationSec, avgHr: a.avgHr, calories: a.calories })
+      runs.push({ id, externalId: id, source: 'coros', date: a.date, type: runTypeFromTitle(title, a.sportType, km, a.durationSec), title, distanceKm: km, durationSec: a.durationSec, avgHr: a.avgHr, calories: a.calories, corosSport: a.sportType })
     } else if (STRENGTH_SPORTS.has(a.sportType) && a.durationSec >= 5 * 60) {
       renfo.push({ id, date: a.date, title: cleanTitle(a.title) ?? 'Renforcement', focus: 'complet', durationMin: Math.round(a.durationSec / 60), exercises: [], notes: 'Séance enregistrée sur la montre' })
     }
@@ -181,6 +182,8 @@ export interface CorosScheduled {
   date: ISODate
   title: string
   planId?: string
+  /** Identifiant de la séance dans le plan, ou d'une séance autonome placée au calendrier */
+  idInPlan?: string
   distanceKm?: number
   durationMin?: number
 }
@@ -195,6 +198,7 @@ export function parseSchedule(text: string): CorosScheduled[] {
       date: lines[0],
       title: lines[1],
       planId: block.match(/Plan ID:\s*(\d+)/)?.[1],
+      idInPlan: block.match(/idInPlan:\s*(\d+)/)?.[1],
       distanceKm: Number(block.match(/Distance:\s*([\d.]+)\s*km/)?.[1]) || undefined,
       durationMin: est ? Math.round((parseDuration(est) ?? 0) / 60) || undefined : undefined,
     })
@@ -312,6 +316,8 @@ export interface CorosFetchResult {
   counts: { runs: number; renfo: number; nights: number; planned: number }
   /** État du jour : récupération et charge (absents si la montre ne les fournit pas) */
   status: { recovery?: CorosRecovery; load?: CorosLoad }
+  /** Prévu / réalisé des sorties structurées récentes, par identifiant de sortie */
+  checks: Record<string, SessionCheck>
 }
 
 const compact = (d: ISODate) => d.replace(/-/g, '')
@@ -327,7 +333,7 @@ async function fetchActivities(call: CorosCall, from: ISODate, to: ISODate, dept
   return items
 }
 
-export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; raceDates: Set<ISODate>; today?: ISODate; hasHrv?: boolean; onStep?: (label: string) => void }): Promise<CorosFetchResult> {
+export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; raceDates: Set<ISODate>; today?: ISODate; hasHrv?: boolean; recentRuns?: Run[]; onStep?: (label: string) => void }): Promise<CorosFetchResult> {
   const today = opts.today ?? todayISO()
   const step = opts.onStep ?? (() => {})
 
@@ -394,7 +400,46 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
   step('Plan')
   const planStart = addDaysISO(today, -14)
   const planEnd = addDaysISO(today, 120)
-  const planned = scheduleToPlanned(parseSchedule(await call('queryTrainingSchedule', { startDate: compact(planStart), endDate: compact(planEnd) })), opts.raceDates)
+  const schedule = parseSchedule(await call('queryTrainingSchedule', { startDate: compact(planStart), endDate: compact(planEnd) }))
+  let planned = scheduleToPlanned(schedule, opts.raceDates)
+
+  // Détail des séances de la semaine passée et des 2 prochaines : étapes, cibles, consignes
+  // (1 appel par plan, 1 par séance autonome ; facultatif : la synchro continue sans)
+  step('Détail des séances')
+  const detailFrom = addDaysISO(today, -7)
+  const detailTo = addDaysISO(today, 13)
+  const near = schedule.filter((s) => s.date >= detailFrom && s.date <= detailTo)
+  const courses: CorosCourse[] = []
+  for (const planId of new Set(near.map((s) => s.planId).filter((x): x is string => !!x))) {
+    try {
+      courses.push(...parsePlanCourses(await call('queryTrainingPlanDetails', { planId, startDay: compact(detailFrom), endDay: compact(detailTo) })))
+    } catch {
+      /* détail du plan indisponible */
+    }
+  }
+  for (const s of near.filter((x) => !x.planId && x.idInPlan).slice(0, 10)) {
+    try {
+      const c = parseScheduledCourse(await call('queryScheduledWorkoutDetails', { date: compact(s.date), idInPlan: s.idInPlan }))
+      if (c) courses.push(c)
+    } catch {
+      /* détail de la séance indisponible */
+    }
+  }
+  planned = attachCourses(planned, courses)
+
+  // Prévu / réalisé : tours des sorties structurées de la semaine, une seule fois par sortie
+  const checks: Record<string, SessionCheck> = {}
+  const recent = [...runs, ...(opts.recentRuns ?? [])].filter((r, i, all) => r.date >= detailFrom && all.findIndex((x) => x.id === r.id) === i)
+  for (const r of recent.filter((x) => needsLapCheck(x, planned)).slice(0, 6)) {
+    const p = plannedForRun(r, planned)
+    if (!p?.steps) continue
+    try {
+      const laps = parseLaps(await call('queryActivityLapData', { labelId: r.id.replace(/^coros-/, ''), sportType: r.corosSport ?? (r.type === 'tapis' ? 101 : r.type === 'trail' ? 102 : 100) }))
+      checks[r.id] = compareSession(p.steps, laps)
+    } catch {
+      /* tours indisponibles : nouvel essai à la prochaine synchro */
+    }
+  }
 
   // 4. Profil (ne complète que les champs vides côté appli)
   step('Profil')
@@ -425,5 +470,6 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
     plannedRange: [planStart, planEnd],
     counts: { runs: runs.length, renfo: renfo.length, nights: sleep.length, planned: planned.length },
     status,
+    checks,
   }
 }
