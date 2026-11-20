@@ -6,8 +6,8 @@ import { BUILTIN_RENFO } from '../data/training'
 export const DATA_VERSION = 1
 export const STORAGE_KEY = 'foulee-data'
 
-export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates' | 'food' | 'activity' | 'weights'
-export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates', 'food', 'activity', 'weights']
+export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates' | 'food' | 'activity' | 'weights' | 'products'
+export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates', 'food', 'activity', 'weights', 'products']
 
 type Item<K extends CollectionKey> = AppData[K][number]
 
@@ -34,6 +34,7 @@ export function emptyData(): AppData {
     food: [],
     activity: [],
     weights: [],
+    products: [],
     dayTypeOverrides: {},
     theme: 'system',
     sync: { corosAuto: true },
@@ -97,7 +98,7 @@ export const useStore = create<Store>()(
           const list = s[key] as Item<typeof key>[]
           const idx = list.findIndex((x) => x.id === item.id)
           const next = idx >= 0 ? list.map((x, i) => (i === idx ? item : x)) : [...list, item]
-          return { [key]: key === 'renfoTemplates' || key === 'shoes' ? next : sortByDateDesc(next as { date?: string }[]) } as Partial<Store>
+          return { [key]: key === 'renfoTemplates' || key === 'shoes' || key === 'products' ? next : sortByDateDesc(next as { date?: string }[]) } as Partial<Store>
         }),
 
       upsertMany: (key, items) =>
@@ -105,7 +106,7 @@ export const useStore = create<Store>()(
           const map = new Map((s[key] as Item<typeof key>[]).map((x) => [x.id, x]))
           items.forEach((it) => map.set(it.id, it))
           const next = [...map.values()]
-          return { [key]: key === 'renfoTemplates' || key === 'shoes' ? next : sortByDateDesc(next as { date?: string }[]) } as Partial<Store>
+          return { [key]: key === 'renfoTemplates' || key === 'shoes' || key === 'products' ? next : sortByDateDesc(next as { date?: string }[]) } as Partial<Store>
         }),
 
       remove: (key, id) => set((s) => ({ [key]: (s[key] as { id: string }[]).filter((x) => x.id !== id) }) as Partial<Store>),
@@ -158,7 +159,7 @@ export const useStore = create<Store>()(
             }
           }
           const next = [...map.values()]
-          ;(patch as Record<string, unknown>)[k] = k === 'renfoTemplates' || k === 'shoes' ? next : sortByDateDesc(next as { date?: string }[])
+          ;(patch as Record<string, unknown>)[k] = k === 'renfoTemplates' || k === 'shoes' || k === 'products' ? next : sortByDateDesc(next as { date?: string }[])
         }
         if (data.profile) {
           // On complète seulement les champs vides : le profil saisi dans l'appli fait foi

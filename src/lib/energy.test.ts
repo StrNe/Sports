@@ -119,3 +119,26 @@ describe('activité COROS', () => {
     ])
   })
 })
+
+describe('code-barres', async () => {
+  const { validEan, normalizeEan } = await import('./barcode')
+  const { cleanProductInfo, productToFoodItem } = await import('./products')
+  it('vérifie la clé de contrôle', () => {
+    expect(validEan('3017620422003')).toBe(true) // EAN-13
+    expect(validEan('3017620422004')).toBe(false)
+    expect(validEan('96385074')).toBe(true) // EAN-8
+    expect(validEan('036000291452')).toBe(true) // UPC-A
+    expect(normalizeEan('036000291452')).toBe('0036000291452')
+    expect(validEan(normalizeEan('036000291452'))).toBe(true)
+  })
+  it('nettoie la lecture de l’étiquette', () => {
+    const p = cleanProductInfo({ barcode: '3017620422003', name: 'Pâte à tartiner', brand: 'null', kcal100: '539', carbs100: '57,5', protein100: 6.3, fat100: 30.9, servingG: 15, netWeightG: '400 g' })
+    expect(p).toEqual({ barcode: '3017620422003', name: 'Pâte à tartiner', brand: undefined, kcal100: 539, carbs100: 57.5, protein100: 6.3, fat100: 30.9, servingG: 15, netWeightG: 400 })
+    expect(cleanProductInfo({ barcode: '1234567890123', kcal100: 2200 })).toMatchObject({ barcode: undefined, kcal100: undefined })
+  })
+  it('un produit scanné se dose comme un aliment', () => {
+    const f = productToFoodItem({ id: '1', barcode: '3017620422003', name: 'Pâte à tartiner', brand: 'Marque', kcal: 539, carbs: 57.5, protein: 6.3, fat: 30.9, servingG: 15, netWeightG: 400, source: 'photo' })
+    expect(f.portions.map((p) => p.label)).toEqual(['1 portion', '100 g', 'le paquet entier'])
+    expect(f.name).toBe('Pâte à tartiner (Marque)')
+  })
+})

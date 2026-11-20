@@ -229,7 +229,25 @@ export interface FoodEntry {
   protein?: number
   fat?: number
   /** Comment la valeur a été obtenue */
-  source?: 'ia' | 'base' | 'manuel'
+  source?: 'ia' | 'base' | 'manuel' | 'scan'
+}
+
+/** Produit emballé mémorisé après un scan (valeurs pour 100 g ou 100 ml) */
+export interface ScannedProduct {
+  /** Le code-barres sert d'identifiant */
+  id: string
+  barcode: string
+  name: string
+  brand?: string
+  kcal: number
+  carbs?: number
+  protein?: number
+  fat?: number
+  /** Portion indiquée sur le paquet, en grammes */
+  servingG?: number
+  /** Poids net du paquet, en grammes */
+  netWeightG?: number
+  source: 'photo' | 'openfoodfacts' | 'manuel'
 }
 
 /** Activité quotidienne mesurée par la montre */
@@ -266,6 +284,8 @@ export interface AppData {
   renfoTemplates: RenfoTemplate[]
   /** Journal alimentaire */
   food: FoodEntry[]
+  /** Produits scannés */
+  products: ScannedProduct[]
   /** Pas et calories actives par jour (montre) */
   activity: DailyActivity[]
   /** Pesées */

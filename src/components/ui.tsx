@@ -272,7 +272,7 @@ export function EmptyState({ icon, title, text, action }: { icon?: ReactNode; ti
 }
 
 // ── Fenêtre modale ──────────────────────────────────────────
-export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, title, children, footer, wide, autoFocus = true }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean; autoFocus?: boolean }) {
   const panelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -280,12 +280,12 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    setTimeout(() => panelRef.current?.querySelector<HTMLElement>('input, select, textarea')?.focus(), 50)
+    if (autoFocus) setTimeout(() => panelRef.current?.querySelector<HTMLElement>('input:not([type=date]):not([type=time]):not([type=file]), select, textarea')?.focus(), 50)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [open, onClose])
+  }, [open, onClose, autoFocus])
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">

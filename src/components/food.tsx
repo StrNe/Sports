@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Camera, Minus, Plus, Search, Sparkles, X } from 'lucide-react'
+import { Camera, Minus, Pencil, Plus, ScanBarcode, Search, Sparkles, X } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
-import type { ActivityLevel, CalorieGoal, FoodEntry, MealSlot } from '../types'
+import type { ActivityLevel, CalorieGoal, FoodEntry, MealSlot, ScannedProduct } from '../types'
 import { Button, Callout, Field, IconButton, Input, Meter, NumberInput, ProgressRing, Segmented, Textarea } from './ui'
 import { FormShell, Row } from './formShell'
 import { fmtDate, fmtNum, todayISO, uid } from '../lib/format'
 import { FOODS, portionValues, searchFoods, type FoodItem } from '../data/foods'
 import { aiAvailable, aiErrorMessage, estimateFood } from '../lib/foodAi'
-import type { SampleError } from '../lib/claude'
+import { inClaude, type SampleError } from '../lib/claude'
+import { decodeBarcode, normalizeEan, validEan } from '../lib/barcode'
+import { lookupOpenFoodFacts, productToFoodItem, readPackagePhoto, type ProductInfo } from '../lib/products'
 import { ACTIVITY_LEVELS, CALORIE_GOALS, dayEnergy, dayIntake } from '../lib/energy'
 import { DAY_TYPES, MEAL_SLOTS, dailyTargets, detectDayType, slotForNow } from '../lib/nutrition'
 
@@ -34,15 +36,21 @@ export function FoodForm({ initial }: { initial?: { date?: string; slot?: MealSl
   const [date, setDate] = useState(initial?.date ?? todayISO())
   const [slot, setSlot] = useState<MealSlot>(initial?.slot ?? slotForNow())
   const [ai, setAi] = useState<{ text: boolean; images: boolean; mediaTypes: string[] } | null>(null)
-  const [tab, setTab] = useState<'decrire' | 'chercher' | 'recents' | 'manuel'>('chercher')
+  const [tab, setTab] = useState<'decrire' | 'scanner' | 'chercher' | 'recents' | 'manuel'>('chercher')
   const [cart, setCart] = useState<CartItem[]>([])
+  const tabPicked = useRef(false)
+  const pickTab = (t: typeof tab) => {
+    tabPicked.current = true
+    setTab(t)
+  }
 
   useEffect(() => {
     let alive = true
     aiAvailable().then((a) => {
       if (!alive) return
       setAi(a)
-      if (a.text) setTab('decrire')
+      // Ouvre sur « Décrire » seulement si tu n'as pas déjà choisi un onglet
+      if (a.text && !tabPicked.current) setTab('decrire')
     })
     return () => {
       alive = false
@@ -61,22 +69,24 @@ export function FoodForm({ initial }: { initial?: { date?: string; slot?: MealSl
 
   const tabs = [
     ...(ai?.text ? [{ value: 'decrire' as const, label: 'Décrire' }] : []),
+    { value: 'scanner' as const, label: 'Scanner' },
     { value: 'chercher' as const, label: 'Chercher' },
     { value: 'recents' as const, label: 'Récents' },
-    { value: 'manuel' as const, label: 'À la main' },
+    { value: 'manuel' as const, label: 'Manuel' },
   ]
 
   return (
-    <FormShell title="Qu’as-tu mangé ?" onSave={save} canSave={cart.length > 0} saveLabel={cart.length ? `Ajouter (${fmtKcal(total)})` : 'Ajouter'} wide>
+    <FormShell title="Qu’as-tu mangé ?" onSave={save} canSave={cart.length > 0} saveLabel={cart.length ? `Ajouter (${fmtKcal(total)})` : 'Ajouter'} wide autoFocus={false}>
       <div className="flex flex-wrap items-end gap-3">
         <Segmented size="sm" value={slot} onChange={setSlot} options={MEAL_SLOTS.map((s) => ({ value: s.key, label: s.short }))} />
         <Input type="date" className="!w-auto !py-1.5 text-sm" value={date} onChange={(e) => setDate(e.target.value || todayISO())} aria-label="Date du repas" />
       </div>
 
-      <Segmented className="!flex w-full" value={tab} onChange={setTab} options={tabs} />
+      <Segmented size="sm" className="!flex w-full" value={tab} onChange={pickTab} options={tabs} />
 
       {tab === 'decrire' && ai?.text && <DescribeTab slot={slot} weightKg={profile.weightKg} ai={ai} onAdd={add} onUnavailable={() => setAi({ text: false, images: false, mediaTypes: [] })} />}
-      {tab === 'chercher' && <SearchTab onAdd={add} onManual={() => setTab('manuel')} />}
+      {tab === 'scanner' && <ScanTab ai={ai} onAdd={add} />}
+      {tab === 'chercher' && <SearchTab onAdd={add} onManual={() => pickTab('manuel')} />}
       {tab === 'recents' && <RecentTab food={food} slot={slot} beforeDate={date} onAdd={add} />}
       {tab === 'manuel' && <ManualTab onAdd={add} />}
 
@@ -220,9 +230,24 @@ function FoodPicker({ food, onAdd }: { food: FoodItem; onAdd: (items: Omit<CartI
 }
 
 function SearchTab({ onAdd, onManual }: { onAdd: (items: Omit<CartItem, 'key'>[]) => void; onManual: () => void }) {
+  const products = useStore((s) => s.products)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
-  const results = useMemo(() => (q.trim() ? searchFoods(q) : FOODS.filter((f) => QUICK_PICKS.includes(f.name))), [q])
+  const results = useMemo(() => {
+    const mine = products.map(productToFoodItem)
+    if (!q.trim()) return [...mine.slice(0, 6), ...FOODS.filter((f) => QUICK_PICKS.includes(f.name))]
+    const words = q
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+    const myHits = mine.filter((f) => {
+      const hay = `${f.name} ${f.aliases ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      return words.every((w) => hay.includes(w))
+    })
+    return [...myHits, ...searchFoods(q)]
+  }, [q, products])
   return (
     <div className="space-y-2">
       <div className="relative">
@@ -337,6 +362,348 @@ function ManualTab({ onAdd }: { onAdd: (items: Omit<CartItem, 'key'>[]) => void 
       >
         Ajouter à la liste
       </Button>
+    </div>
+  )
+}
+
+// ── Scan d'un code-barres ───────────────────────────────────
+type ScanPhase = 'idle' | 'reading' | 'unknown' | 'edit' | 'product'
+
+interface ProductDraft {
+  barcode?: string
+  name: string
+  brand?: string
+  kcal?: number
+  carbs?: number
+  protein?: number
+  fat?: number
+  servingG?: number
+  netWeightG?: number
+  source: ScannedProduct['source']
+}
+
+function draftFrom(info: ProductInfo, source: ScannedProduct['source']): ProductDraft {
+  return { barcode: info.barcode, name: info.name ?? '', brand: info.brand, kcal: info.kcal100, carbs: info.carbs100, protein: info.protein100, fat: info.fat100, servingG: info.servingG, netWeightG: info.netWeightG, source }
+}
+
+function PhotoButton({ label, onFile, primary }: { label: string; onFile: (f: File) => void; primary?: boolean }) {
+  return (
+    <label
+      className={clsx(
+        'flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 font-medium transition',
+        primary ? 'h-24 flex-col border-2 border-dashed border-food/60 bg-food/10 text-ink hover:bg-food/15' : 'h-10 border border-line bg-surface text-sm hover:bg-surface-2',
+      )}
+    >
+      {primary ? <ScanBarcode size={28} className="text-food" /> : <Camera size={16} />}
+      <span className={primary ? 'text-sm font-semibold' : ''}>{label}</span>
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (f) onFile(f)
+        }}
+      />
+    </label>
+  )
+}
+
+function ScanTab({ ai, onAdd }: { ai: { text: boolean; images: boolean } | null; onAdd: (items: Omit<CartItem, 'key'>[]) => void }) {
+  const { products, upsert } = useStore()
+  const notify = useUi((s) => s.notify)
+  const [phase, setPhase] = useState<ScanPhase>('idle')
+  const [step, setStep] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [code, setCode] = useState<string | undefined>()
+  const [typed, setTyped] = useState('')
+  const [product, setProduct] = useState<ScannedProduct | undefined>()
+  const [draft, setDraft] = useState<ProductDraft | undefined>()
+  const [grams, setGrams] = useState<number | undefined>(100)
+  const canReadPhoto = !!ai?.images
+
+  const known = (c?: string) => (c ? products.find((p) => p.barcode === c) : undefined)
+  const show = (p: ScannedProduct) => {
+    setProduct(p)
+    setGrams(p.servingG ?? 100)
+    setPhase('product')
+  }
+
+  /** Produit inconnu : base Open Food Facts (hors claude.ai) puis lecture de l'étiquette */
+  const resolveUnknown = async (c: string | undefined, info?: ProductInfo) => {
+    setCode(c)
+    if (c && !inClaude()) {
+      setStep('Recherche dans Open Food Facts…')
+      const off = await lookupOpenFoodFacts(c)
+      if (off?.kcal100 != null) {
+        setDraft(draftFrom(off, 'openfoodfacts'))
+        setPhase('edit')
+        return
+      }
+    }
+    if (info?.kcal100 != null) {
+      setDraft(draftFrom({ ...info, barcode: c ?? info.barcode }, 'photo'))
+      setPhase('edit')
+      return
+    }
+    setDraft(draftFrom({ ...(info ?? {}), barcode: c }, canReadPhoto ? 'photo' : 'manuel'))
+    setPhase('unknown')
+  }
+
+  const onBarcodePhoto = async (file: File) => {
+    setError(null)
+    setPhase('reading')
+    setStep('Lecture du code-barres…')
+    const c = await decodeBarcode(file).catch(() => null)
+    const local = known(c ?? undefined)
+    if (local) return show(local)
+    if (canReadPhoto) {
+      // Claude relit la photo : chiffres du code-barres si besoin, et tableau nutritionnel s'il est visible
+      setStep(c ? 'Produit inconnu : Claude lit l’étiquette…' : 'Code illisible : Claude relit la photo…')
+      try {
+        const info = await readPackagePhoto(file)
+        const c2 = c ?? info.barcode
+        const local2 = known(c2)
+        if (local2) return show(local2)
+        if (!c2 && info.kcal100 == null) {
+          setError('Je n’arrive pas à lire le code-barres. Reprends la photo plus près, bien à plat et nette, ou tape les chiffres.')
+          setPhase('idle')
+          return
+        }
+        return resolveUnknown(c2, info)
+      } catch (e) {
+        const msg = aiErrorMessage(e as SampleError)
+        if (msg) setError(msg)
+      }
+    }
+    if (!c) {
+      setError('Code-barres illisible. Reprends la photo plus près, bien à plat et nette, ou tape les chiffres.')
+      setPhase('idle')
+      return
+    }
+    return resolveUnknown(c)
+  }
+
+  const onLabelPhoto = async (file: File) => {
+    setError(null)
+    setPhase('reading')
+    setStep('Claude lit le tableau nutritionnel…')
+    try {
+      const info = await readPackagePhoto(file)
+      if (info.kcal100 == null) {
+        setError('Je ne trouve pas les valeurs pour 100 g sur cette photo. Prends le tableau nutritionnel de face, bien éclairé.')
+        setPhase('unknown')
+        return
+      }
+      setDraft((d) => ({ ...draftFrom({ ...info, barcode: d?.barcode ?? code ?? info.barcode, name: info.name ?? d?.name, brand: info.brand ?? d?.brand }, 'photo') }))
+      setPhase('edit')
+    } catch (e) {
+      const msg = aiErrorMessage(e as SampleError)
+      if (msg) setError(msg)
+      setPhase('unknown')
+    }
+  }
+
+  const onTyped = async () => {
+    setError(null)
+    const c = normalizeEan(typed)
+    if (!validEan(c)) {
+      setError('Ce code n’est pas valide : vérifie les 13 chiffres sous le code-barres.')
+      return
+    }
+    const local = known(c)
+    if (local) return show(local)
+    setPhase('reading')
+    await resolveUnknown(c)
+  }
+
+  const saveDraft = () => {
+    if (!draft || draft.kcal == null) return
+    const id = draft.barcode ?? `perso-${uid().slice(0, 8)}`
+    const p: ScannedProduct = { id, barcode: draft.barcode ?? id, name: draft.name.trim() || 'Produit', brand: draft.brand?.trim() || undefined, kcal: Math.round(draft.kcal), carbs: draft.carbs, protein: draft.protein, fat: draft.fat, servingG: draft.servingG, netWeightG: draft.netWeightG, source: draft.source }
+    upsert('products', p)
+    notify('Produit mémorisé : le prochain scan sera instantané')
+    show(p)
+  }
+
+  const reset = () => {
+    setPhase('idle')
+    setProduct(undefined)
+    setDraft(undefined)
+    setCode(undefined)
+    setTyped('')
+  }
+
+  if (phase === 'reading')
+    return (
+      <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-4 text-sm">
+        <ScanBarcode size={20} className="animate-pulse text-food" />
+        {step}
+      </div>
+    )
+
+  if (phase === 'product' && product) {
+    const g = grams ?? 0
+    const k = g / 100
+    const v = { kcal: Math.round(product.kcal * k), carbs: product.carbs != null ? Math.round(product.carbs * k) : undefined, protein: product.protein != null ? Math.round(product.protein * k) : undefined, fat: product.fat != null ? Math.round(product.fat * k) : undefined }
+    const chips = [
+      ...(product.servingG ? [{ label: `1 portion (${product.servingG} g)`, g: product.servingG }] : []),
+      { label: '100 g', g: 100 },
+      ...(product.netWeightG && product.netWeightG <= 2000 ? [{ label: `Le paquet (${product.netWeightG} g)`, g: product.netWeightG }] : []),
+    ]
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl bg-surface-2 p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold">{product.name}</p>
+              <p className="text-xs text-ink-3">{[product.brand, `code ${product.barcode.startsWith('perso-') ? 'perso' : product.barcode}`].filter(Boolean).join(' · ')}</p>
+            </div>
+            <IconButton label="Corriger le produit" onClick={() => (setDraft(draftFrom({ barcode: product.barcode, name: product.name, brand: product.brand, kcal100: product.kcal, carbs100: product.carbs, protein100: product.protein, fat100: product.fat, servingG: product.servingG, netWeightG: product.netWeightG }, 'manuel')), setPhase('edit'))}>
+              <Pencil size={15} />
+            </IconButton>
+          </div>
+          <p className="mt-1 text-xs text-ink-2">
+            Pour 100 g : {product.kcal} kcal{product.carbs != null ? ` · ${fmtNum(product.carbs, 1)} g glucides` : ''}
+            {product.protein != null ? ` · ${fmtNum(product.protein, 1)} g protéines` : ''}
+            {product.fat != null ? ` · ${fmtNum(product.fat, 1)} g lipides` : ''}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <button key={c.label} type="button" onClick={() => setGrams(c.g)} className={clsx('rounded-lg px-2.5 py-1 text-xs font-medium', grams === c.g ? 'bg-ink text-bg' : 'bg-surface-3 text-ink-2')}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Quantité mangée (g ou ml)" className="w-44">
+            <NumberInput value={grams} onChange={setGrams} />
+          </Field>
+          <p className="pb-2.5 text-sm font-semibold">{fmtKcal(v.kcal)}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="primary"
+            disabled={!g}
+            icon={<Plus size={16} />}
+            onClick={() => {
+              onAdd([{ name: product.brand ? `${product.name} (${product.brand})` : product.name, quantity: `${fmtNum(g)} g`, ...v, source: 'scan' }])
+              reset()
+            }}
+          >
+            Ajouter à la liste
+          </Button>
+          <Button variant="ghost" onClick={reset}>
+            Scanner un autre produit
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'edit' && draft)
+    return (
+      <div className="space-y-3">
+        <Callout icon={draft.source === 'openfoodfacts' ? '🌍' : draft.source === 'photo' ? '📷' : '✍️'} title={draft.source === 'manuel' ? 'Valeurs du produit' : 'Vérifie les valeurs lues'}>
+          {draft.source === 'openfoodfacts' ? 'Trouvé dans Open Food Facts.' : draft.source === 'photo' ? 'Lues par Claude sur ta photo : compare avec l’étiquette.' : 'Recopie les valeurs « pour 100 g » de l’étiquette.'} Le produit sera mémorisé pour tes prochains scans.
+        </Callout>
+        <Row>
+          <Field label="Nom du produit">
+            <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="ex. Yaourt aux fruits" />
+          </Field>
+          <Field label="Marque">
+            <Input value={draft.brand ?? ''} onChange={(e) => setDraft({ ...draft, brand: e.target.value || undefined })} />
+          </Field>
+        </Row>
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">Pour 100 g</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Field label="Calories">
+            <NumberInput value={draft.kcal} onChange={(v) => setDraft({ ...draft, kcal: v })} placeholder="kcal" />
+          </Field>
+          <Field label="Glucides">
+            <NumberInput value={draft.carbs} onChange={(v) => setDraft({ ...draft, carbs: v })} placeholder="g" />
+          </Field>
+          <Field label="Protéines">
+            <NumberInput value={draft.protein} onChange={(v) => setDraft({ ...draft, protein: v })} placeholder="g" />
+          </Field>
+          <Field label="Lipides">
+            <NumberInput value={draft.fat} onChange={(v) => setDraft({ ...draft, fat: v })} placeholder="g" />
+          </Field>
+        </div>
+        <Row>
+          <Field label="Portion indiquée (g)">
+            <NumberInput value={draft.servingG} onChange={(v) => setDraft({ ...draft, servingG: v })} placeholder="facultatif" />
+          </Field>
+          <Field label="Poids du paquet (g)">
+            <NumberInput value={draft.netWeightG} onChange={(v) => setDraft({ ...draft, netWeightG: v })} placeholder="facultatif" />
+          </Field>
+        </Row>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="primary" disabled={draft.kcal == null || !draft.name.trim()} onClick={saveDraft}>
+            Enregistrer ce produit
+          </Button>
+          <Button variant="ghost" onClick={reset}>
+            Annuler
+          </Button>
+        </div>
+      </div>
+    )
+
+  if (phase === 'unknown')
+    return (
+      <div className="space-y-3">
+        <Callout icon="🔎" title="Produit pas encore connu">
+          {code ? `Code ${code} lu. ` : ''}
+          {canReadPhoto ? 'Prends en photo le tableau nutritionnel du paquet : Claude recopie les valeurs pour 100 g, et le produit sera mémorisé pour les prochaines fois.' : 'Recopie les valeurs pour 100 g de l’étiquette : le produit sera mémorisé pour les prochaines fois.'}
+        </Callout>
+        {error && <Callout tone="warning">{error}</Callout>}
+        <div className="flex flex-wrap gap-2">
+          {canReadPhoto && <PhotoButton label="Photo du tableau nutritionnel" onFile={onLabelPhoto} />}
+          <Button variant={canReadPhoto ? 'ghost' : 'primary'} onClick={() => (setDraft((d) => ({ ...(d ?? { name: '' }), barcode: code, source: 'manuel' })), setPhase('edit'))}>
+            Saisir les valeurs à la main
+          </Button>
+          <Button variant="ghost" onClick={reset}>
+            Annuler
+          </Button>
+        </div>
+      </div>
+    )
+
+  return (
+    <div className="space-y-3">
+      <PhotoButton primary label="Scanner un code-barres" onFile={onBarcodePhoto} />
+      <p className="text-xs text-ink-3">
+        Prends le code-barres en photo, bien net et à plat.{canReadPhoto ? ' Astuce : photographie le dos du paquet avec le tableau nutritionnel visible, un nouveau produit est enregistré en une seule photo.' : ''}
+      </p>
+      {error && <Callout tone="warning">{error}</Callout>}
+      <div className="flex gap-2">
+        <Input inputMode="numeric" value={typed} onChange={(e) => setTyped(e.target.value.replace(/[^\d]/g, '').slice(0, 13))} placeholder="ou tape les chiffres du code-barres" aria-label="Code-barres" />
+        <Button disabled={typed.length < 8} onClick={onTyped}>
+          Chercher
+        </Button>
+      </div>
+      {products.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-3">Mes produits ({products.length})</p>
+          <ul className="max-h-48 space-y-1 overflow-y-auto scroll-thin">
+            {products.map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => show(p)} className="flex w-full items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 text-left hover:bg-surface-3">
+                  <span>🏷️</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {p.name}
+                    {p.brand && <span className="text-ink-3"> · {p.brand}</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-3">{p.kcal} kcal / 100 g</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

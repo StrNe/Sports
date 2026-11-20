@@ -149,7 +149,7 @@ describe('sauvegarde en ligne', () => {
   it('découpe et reconstitue les données', () => {
     const d = { ...emptyData(), runs: [{ id: 'a', date: '2025-12-30', type: 'ef' as const, distanceKm: 5, durationSec: 1800 }, { id: 'b', date: '2026-01-02', type: 'ef' as const, distanceKm: 6, durationSec: 2000 }] }
     const docs = toDocs(d)
-    expect(Object.keys(docs).sort()).toEqual(['meta', 'runs-2025', 'runs-2026'])
+    expect(Object.keys(docs).sort()).toEqual(['meta', 'products', 'runs-2025', 'runs-2026'])
     const back = fromDocs(Object.entries(docs).map(([id, data]) => ({ id, data })))
     expect(back.runs.map((r) => r.id)).toEqual(['b', 'a'])
     expect(stableStringify({ b: 1, a: [1, { d: 2, c: 3 }] })).toBe(stableStringify({ a: [1, { c: 3, d: 2 }], b: 1 }))

@@ -5,12 +5,13 @@ import { useUi } from '../store/useStore'
 import { Button, Modal } from './ui'
 
 // ── Coquille commune ───────────────────────────────────────
-export function FormShell({ title, children, onSave, onDelete, canSave = true, wide, saveLabel = 'Enregistrer' }: { title: string; children: ReactNode; onSave: () => void; onDelete?: () => void; canSave?: boolean; wide?: boolean; saveLabel?: string }) {
+export function FormShell({ title, children, onSave, onDelete, canSave = true, wide, saveLabel = 'Enregistrer', autoFocus = true }: { title: string; children: ReactNode; onSave: () => void; onDelete?: () => void; canSave?: boolean; wide?: boolean; saveLabel?: string; autoFocus?: boolean }) {
   const close = useUi((s) => s.closeForm)
   const ask = useUi((s) => s.ask)
   return (
     <Modal
       open
+      autoFocus={autoFocus}
       wide={wide}
       onClose={close}
       title={title}

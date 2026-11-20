@@ -44,6 +44,7 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
       renfoTemplates: d.renfoTemplates.filter((t) => !t.builtin),
       sync: d.sync ?? {},
     }),
+    products: clean({ items: d.products ?? [] }),
   }
   for (const k of DATED) {
     const byYear = new Map<string, unknown[]>()
@@ -59,6 +60,7 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
 export function fromDocs(docs: { id: string; data: Record<string, unknown> }[]): AppData {
   const meta = docs.find((x) => x.id === 'meta')?.data ?? {}
   const out: Record<string, unknown> = { ...meta }
+  out.products = (docs.find((x) => x.id === 'products')?.data.items as unknown[]) ?? []
   for (const k of DATED) {
     out[k] = docs.filter((x) => x.id.startsWith(`${k}-`)).flatMap((x) => (x.data.items as unknown[]) ?? [])
   }
