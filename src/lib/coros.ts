@@ -1,11 +1,11 @@
 // Synchronisation avec COROS via le connecteur claude.ai (capacité `mcp` des artifacts).
 // Les outils COROS répondent en texte formaté : on le convertit en données Foulée.
 
-import type { AppData, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SleepEntry } from '../types'
+import type { AppData, DailyActivity, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SleepEntry } from '../types'
 import { addDaysISO, daysBetween, parseDuration, todayISO } from './format'
 
 export const COROS_SERVER = 'COROS'
-export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview'] as const
+export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryDailyHealthData', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview'] as const
 export type CorosTool = (typeof COROS_TOOLS)[number]
 
 const RUN_SPORTS = new Set([100, 101, 102, 103])
@@ -156,6 +156,17 @@ export function parseSleepHrv(text: string): Record<ISODate, HrvNight> {
       high: m[5] ? Number(m[5]) : undefined,
       baseline: m[6] ? Number(m[6]) : undefined,
     }
+  }
+  return out
+}
+
+/** Pas et calories actives par jour (« --- 20261117 --- / Steps: 11,671 | Calories: 965 kcal | Exercise: 50 min ») */
+export function parseDailyHealth(text: string): DailyActivity[] {
+  const out: DailyActivity[] = []
+  const int = (s: string) => Number(s.replace(/[\s,.\u202f]/g, ''))
+  for (const m of text.matchAll(/---\s*(\d{4})(\d{2})(\d{2})\s*---\s*\n\s*Steps:\s*([\d,.\s\u202f]+?)\s*\|\s*Calories:\s*([\d,.\s\u202f]+?)\s*kcal(?:\s*\|\s*Exercise:\s*(\d+)\s*min)?/g)) {
+    const date = `${m[1]}-${m[2]}-${m[3]}`
+    out.push({ id: `coros-day-${date}`, date, steps: int(m[4]), activeKcal: int(m[5]), exerciseMin: m[6] ? Number(m[6]) : undefined })
   }
   return out
 }
@@ -324,6 +335,16 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
     /* VFC indisponible : le reste du sommeil est quand même importé */
   }
 
+  // Pas et calories actives (pour le bilan calorique)
+  step('Activité')
+  let activity: DailyActivity[] = []
+  try {
+    const days = opts.lastDate ? Math.min(90, Math.max(3, daysBetween(opts.lastDate, today) + 3)) : 60
+    activity = parseDailyHealth(await call('queryDailyHealthData', { days }))
+  } catch {
+    /* activité indisponible : les besoins seront estimés */
+  }
+
   // 3. Plan d'entraînement : 2 semaines en arrière, 4 mois devant
   step('Plan')
   const planStart = addDaysISO(today, -14)
@@ -341,7 +362,7 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
   }
 
   return {
-    data: { runs, renfo, sleep, planned, profile: profile as Profile },
+    data: { runs, renfo, sleep, planned, activity, profile: profile as Profile },
     plannedRange: [planStart, planEnd],
     counts: { runs: runs.length, renfo: renfo.length, nights: sleep.length, planned: planned.length },
   }

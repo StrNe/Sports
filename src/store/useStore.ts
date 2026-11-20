@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { AppData, DayType, ISODate, MealSlot, PlannedWorkout, Profile, Run, SyncState, Theme } from '../types'
+import type { AppData, DayType, ISODate, PlannedWorkout, Profile, Run, SyncState, Theme } from '../types'
 import { BUILTIN_RENFO } from '../data/training'
 
 export const DATA_VERSION = 1
 export const STORAGE_KEY = 'foulee-data'
 
-export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates'
-export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates']
+export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates' | 'food' | 'activity' | 'weights'
+export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates', 'food', 'activity', 'weights']
 
 type Item<K extends CollectionKey> = AppData[K][number]
 
@@ -31,8 +31,9 @@ export function emptyData(): AppData {
     shoes: [],
     planned: [],
     renfoTemplates: BUILTIN_RENFO,
-    mealPicks: {},
-    favoriteMeals: [],
+    food: [],
+    activity: [],
+    weights: [],
     dayTypeOverrides: {},
     theme: 'system',
     sync: { corosAuto: true },
@@ -47,8 +48,6 @@ interface Actions {
   setSync: (patch: Partial<SyncState>) => void
   setProfile: (p: Partial<Profile>) => void
   setTheme: (t: Theme) => void
-  setMealPick: (date: ISODate, slot: MealSlot, mealId: string | undefined) => void
-  toggleFavoriteMeal: (id: string) => void
   setDayTypeOverride: (date: ISODate, t: DayType | undefined) => void
   replaceAll: (data: AppData) => void
   mergeAll: (data: Partial<AppData>) => { added: number }
@@ -74,8 +73,6 @@ export function normalizeData(input: Partial<AppData>): AppData {
     ...input,
     version: DATA_VERSION,
     profile: { ...base.profile, ...(input.profile ?? {}) },
-    mealPicks: input.mealPicks ?? {},
-    favoriteMeals: input.favoriteMeals ?? [],
     dayTypeOverrides: input.dayTypeOverrides ?? {},
     theme: input.theme ?? 'system',
     sync: { corosAuto: true, ...(input.sync ?? {}) },
@@ -122,17 +119,6 @@ export const useStore = create<Store>()(
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
       setTheme: (theme) => set({ theme }),
 
-      setMealPick: (date, slot, mealId) =>
-        set((s) => {
-          const day = { ...(s.mealPicks[date] ?? {}) }
-          if (mealId) day[slot] = mealId
-          else delete day[slot]
-          return { mealPicks: { ...s.mealPicks, [date]: day } }
-        }),
-
-      toggleFavoriteMeal: (id) =>
-        set((s) => ({ favoriteMeals: s.favoriteMeals.includes(id) ? s.favoriteMeals.filter((x) => x !== id) : [...s.favoriteMeals, id] })),
-
       setDayTypeOverride: (date, t) =>
         set((s) => {
           const next = { ...s.dayTypeOverrides }
@@ -160,6 +146,9 @@ export const useStore = create<Store>()(
               if (k === 'runs' && isDuplicateRun(it as unknown as Run, current as unknown as Run[])) continue
               added++
               map.set(it.id, it)
+            } else if (k === 'activity') {
+              // Les pas et calories du jour évoluent : la mesure la plus récente gagne
+              map.set(it.id, { ...prev, ...it })
             } else if (k === 'planned') {
               // Le plan peut évoluer côté montre, mais une séance validée dans l'appli le reste
               map.set(it.id, { ...prev, ...it, done: (prev as PlannedWorkout).done || (it as PlannedWorkout).done } as typeof it)
@@ -177,8 +166,6 @@ export const useStore = create<Store>()(
           for (const [key, v] of Object.entries(data.profile)) if (profile[key] === undefined || profile[key] === '') profile[key] = v
           patch.profile = profile as unknown as Profile
         }
-        if (data.mealPicks) patch.mealPicks = { ...s.mealPicks, ...data.mealPicks }
-        if (data.favoriteMeals) patch.favoriteMeals = [...new Set([...s.favoriteMeals, ...data.favoriteMeals])]
         if (data.dayTypeOverrides) patch.dayTypeOverrides = { ...s.dayTypeOverrides, ...data.dayTypeOverrides }
         set(patch)
         return { added }
@@ -209,7 +196,7 @@ export function snapshot(): AppData {
 }
 
 // ── État d'interface (non persisté) ─────────────────────────
-export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned' | 'goals'
+export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned' | 'goals' | 'food' | 'foodEntry' | 'calories'
 
 export type CorosStatus =
   | { state: 'unavailable' }

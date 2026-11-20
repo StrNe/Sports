@@ -10,7 +10,7 @@ Elle est pensée pour un coureur qui prépare un objectif : chaque écran répon
 | --- | --- | --- |
 | Données COROS | **Synchronisées automatiquement** à l'ouverture : tout l'historique, chaque nouvelle sortie, les nuits, la FC de repos et le plan d'entraînement | Import manuel (`.fit`, `.gpx`, `.tcx` ou sauvegarde) |
 | Stockage | Sauvegarde en ligne privée : mêmes données sur téléphone et ordinateur | Dans le navigateur de l'appareil |
-| Construction | `npm run build:artifact` → `dist-artifact/foulee.html`, publié comme artifact claude.ai avec les capacités `mcp` (connecteur COROS, lecture seule), `db` (lecture et écriture réservées au propriétaire) et `downloads` | `npm run build` → `dist/`, déployé par GitHub Actions |
+| Construction | `npm run build:artifact` → `dist-artifact/foulee.html`, publié comme artifact claude.ai avec les capacités `mcp` (connecteur COROS, lecture seule), `db` (lecture et écriture réservées au propriétaire), `sample` (estimation des repas par Claude, photos comprises) et `downloads` | `npm run build` → `dist/`, déployé par GitHub Actions |
 
 La version claude.ai utilise le connecteur COROS de ton compte claude.ai : la page ne voit jamais tes identifiants, et claude.ai te demande ton accord à la première synchronisation.
 
@@ -25,7 +25,7 @@ La version claude.ai utilise le connecteur COROS de ton compte claude.ai : la pa
 | **Musculation** | Séries × répétitions × charge, tonnage, 1RM estimé (Epley), progression et records par exercice, « Refaire » une séance |
 | **Courses & records** | Calendrier des courses (priorité A/B/C), résultats, records 5 km → marathon, prédictions de temps (Riegel) et VDOT |
 | **Sommeil** | Durée, qualité, dette de sommeil, régularité du coucher, FC de repos, heure de coucher idéale, conseils |
-| **Repas** | 4 idées de repas par jour adaptées au type de journée (repos, séance facile/intense, sortie longue, veille et jour de course), repères glucides / protéines / eau, menu de la semaine et liste de courses. Régime végétarien, végan, sans gluten ou sans lactose pris en compte |
+| **Repas & calories** | Journal alimentaire : tu décris ce que tu as mangé (Claude estime calories et macros, photo possible dans la version claude.ai), tu cherches parmi ~100 aliments courants avec leurs portions, tu reprends un repas récent ou tu saisis à la main. Objectif du jour calculé à partir du métabolisme de base, de l’activité mesurée par la montre (pas, calories actives) et des séances, selon ton but (garder, perdre ou prendre du poids). Onglet Suivi : mangé vs dépensé jour par jour, écart moyen, effet estimé sur le poids et pesées |
 | **Outils coureur** | Calculateur d'allure et temps de passage, prédictions + allures d'entraînement (méthode Daniels), zones cardiaques (Karvonen) et zones VMA, plan de ravitaillement, planificateur **Backyard** (longueur de boucle réglable, marche-course, marge par boucle) |
 | **Profil & données** | Profil, préférences, thème clair/sombre, export/import de sauvegarde, données de démonstration |
 

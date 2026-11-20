@@ -10,8 +10,8 @@ import { FeedRow, KIND_ICON, buildFeed } from '../components/activity'
 import { addDaysISO, capitalize, fmtDate, fmtDateLong, fmtDuration, fmtKm, fmtMinutes, fmtNum, todayISO, weekStartISO } from '../lib/format'
 import { bestEfforts, dailyLoads, loadStatus, referencePerformances, runsInRange, weeklyRunSummary } from '../lib/running'
 import { coachTips, nextGoalRace, readiness, sleepStats } from '../lib/insights'
-import { DAY_TYPES, detectDayType, mealFor } from '../lib/nutrition'
-import { MEAL_SLOTS } from '../data/meals'
+import { slotForNow } from '../lib/nutrition'
+import { CalorieSummary } from '../components/food'
 import type { PlannedWorkout } from '../types'
 
 const TILE = 'block rounded-2xl border border-line bg-surface p-4 transition hover:border-ink-3/40 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand'
@@ -55,8 +55,6 @@ export default function Dashboard() {
   const todayPlanned = planned.filter((p) => p.date === today)
   const tomorrowPlanned = planned.filter((p) => p.date === addDaysISO(today, 1))
   const todayDone = buildFeed(runsInRange(runs, today, today), renfo.filter((s) => s.date === today), muscu.filter((s) => s.date === today))
-  const dayType = detectDayType(today, data)
-  const meals = MEAL_SLOTS.map((s) => ({ slot: s, meal: mealFor(today, s.key, dayType.type, data) }))
 
 
   const completePlanned = (p: PlannedWorkout) => {
@@ -191,25 +189,18 @@ export default function Dashboard() {
           <CardTitle
             icon={<Utensils size={16} />}
             accent="food"
-            title="Repas du jour"
-            subtitle={`${DAY_TYPES[dayType.type].emoji} ${DAY_TYPES[dayType.type].label}`}
+            title="Calories du jour"
+            subtitle="Mangé face à ton objectif"
             action={
               <Link to="/repas" className="text-sm font-medium text-ink-2 hover:text-ink">
-                Détails →
+                Suivi →
               </Link>
             }
           />
-          <ul className="space-y-2.5">
-            {meals.map(({ slot, meal }) => (
-              <li key={slot.key} className="flex items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-food/15 text-lg">{meal?.emoji}</span>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-ink-3">{slot.label}</p>
-                  <p className="truncate text-sm">{meal?.name ?? '—'}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <CalorieSummary date={today} compact />
+          <Button variant="soft" className="mt-4 w-full" icon={<Plus size={16} />} onClick={() => openForm('food', { date: today, slot: slotForNow() })}>
+            Noter un repas
+          </Button>
         </Card>
       </div>
 

@@ -39,10 +39,30 @@ export interface DownloadsNamespace {
   save(req: { filename: string; data: string | Blob }): Promise<{ status: string }>
 }
 
+export interface SampleOptions {
+  modelTier?: 'quick' | 'default' | 'complex'
+  images?: Blob | Blob[]
+  signal?: AbortSignal
+  cache?: boolean | { gcTime?: number; refresh?: boolean }
+}
+
+export interface SampleNamespace {
+  (input: string, options?: SampleOptions): Promise<{ text: string; truncated: boolean }>
+  json<T = unknown>(input: string, options?: SampleOptions): Promise<T>
+  limits(): Promise<{ maxPromptBytes: number; images?: { maxCount: number; maxInputBytes: number; mediaTypes: string[] } }>
+}
+
+export interface SampleError {
+  code: string
+  message?: string
+  text?: string
+}
+
 interface CapabilityMap {
   mcp: McpNamespace
   db: DbNamespace
   downloads: DownloadsNamespace
+  sample: SampleNamespace
 }
 
 declare global {

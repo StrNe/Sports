@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Area, ComposedChart } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, Area, ComposedChart } from 'recharts'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 
@@ -270,6 +270,105 @@ export function MiniBars({ values, color, max, labels }: { values: (number | nul
       {values.map((v, i) => (
         <div key={i} className="flex-1 rounded-t-[3px]" style={{ height: v ? `${Math.max(10, (v / top) * 100)}%` : '3px', background: v ? color : 'var(--surface-3)' }} title={labels?.[i]} />
       ))}
+    </div>
+  )
+}
+
+export interface EnergyDatum {
+  label: string
+  tooltipLabel: string
+  intake: number | null
+  expenditure: number
+  balance: number | null
+  complete: boolean
+}
+
+const kcalFmt = (v: number) => `${Math.round(v).toLocaleString('fr-FR')} kcal`
+
+function EnergyTip({ active, payload }: { active?: boolean; payload?: { payload?: EnergyDatum }[] }) {
+  if (!active || !payload?.length || !payload[0].payload) return null
+  const d = payload[0].payload
+  return (
+    <div className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs shadow-lg">
+      <div className="text-ink-3">{d.tooltipLabel}</div>
+      <div className="mt-0.5 text-ink-2">
+        Mangé : <span className="font-semibold text-ink">{d.intake != null ? kcalFmt(d.intake) : 'rien de noté'}</span>
+      </div>
+      <div className="text-ink-2">
+        Dépensé : <span className="font-semibold text-ink">{kcalFmt(d.expenditure)}</span>
+      </div>
+      {d.balance != null && (
+        <div className="font-semibold text-ink">
+          Écart : {d.balance > 0 ? '+' : '−'}
+          {kcalFmt(Math.abs(d.balance))}
+          {!d.complete && <span className="font-normal text-ink-3"> (journée incomplète)</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Calories mangées (barres) face à la dépense (ligne), même échelle. */
+export function IntakeChart({ data, height = 230 }: { data: EnergyDatum[]; height?: number }) {
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm" style={{ background: 'var(--food)' }} /> Mangé
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-3 rounded" style={{ background: 'var(--ink-2)' }} /> Dépensé
+        </span>
+      </div>
+      <div style={{ height }} role="img" aria-label="Calories mangées et dépensées par jour">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 12, right: 4, left: -6, bottom: 0 }} barCategoryGap="22%">
+            <CartesianGrid vertical={false} stroke="var(--grid)" />
+            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval="preserveStartEnd" minTickGap={10} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k` : String(v))} />
+            <Tooltip cursor={{ fill: 'var(--surface-3)', opacity: 0.6 }} content={<EnergyTip />} />
+            <Bar dataKey="intake" maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+              {data.map((d, i) => (
+                <Cell key={i} fill="var(--food)" fillOpacity={d.complete || d.intake == null ? 1 : 0.45} />
+              ))}
+            </Bar>
+            <Line type="monotone" dataKey="expenditure" stroke="var(--ink-2)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: 'var(--ink-2)', stroke: 'var(--surface)', strokeWidth: 2 }} isAnimationActive={false} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+/** Écart quotidien : en dessous des besoins (bleu) ou au-dessus (rouge), autour de zéro. */
+export function BalanceChart({ data, height = 190 }: { data: EnergyDatum[]; height?: number }) {
+  const rows = data.map((d) => ({ ...d, value: d.complete ? d.balance : null }))
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm" style={{ background: 'var(--sleep)' }} /> En dessous de tes besoins
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 rounded-sm" style={{ background: 'var(--race)' }} /> Au-dessus
+        </span>
+      </div>
+      <div style={{ height }} role="img" aria-label="Écart quotidien entre calories mangées et dépensées">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={{ top: 8, right: 4, left: -6, bottom: 0 }} barCategoryGap="22%">
+            <CartesianGrid vertical={false} stroke="var(--grid)" />
+            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={10} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v}`} />
+            <Tooltip cursor={{ fill: 'var(--surface-3)', opacity: 0.6 }} content={<EnergyTip />} />
+            <ReferenceLine y={0} stroke="var(--axis)" strokeWidth={1} />
+            <Bar dataKey="value" maxBarSize={24} isAnimationActive={false}>
+              {rows.map((d, i) => (
+                <Cell key={i} fill={(d.value ?? 0) >= 0 ? 'var(--race)' : 'var(--sleep)'} radius={((d.value ?? 0) >= 0 ? [4, 4, 0, 0] : [0, 0, 4, 4]) as unknown as number} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

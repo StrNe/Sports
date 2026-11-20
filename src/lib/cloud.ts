@@ -8,7 +8,9 @@ import { normalizeData } from '../store/useStore'
 import type { DbNamespace } from './claude'
 
 export const CLOUD_COLLECTION = 'foulee'
-const DATED = ['runs', 'renfo', 'muscu', 'sleep', 'planned'] as const
+const DATED = ['runs', 'renfo', 'muscu', 'sleep', 'planned', 'food', 'activity', 'weights'] as const
+/** Le journal alimentaire grossit vite : un document par mois au lieu d'un par an */
+const MONTHLY = new Set<string>(['food'])
 
 /** JSON à clés triées, pour comparer des documents quel que soit l'ordre des champs */
 export function stableStringify(v: unknown): string {
@@ -35,8 +37,6 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
       version: d.version,
       profile: d.profile,
       theme: d.theme,
-      mealPicks: d.mealPicks,
-      favoriteMeals: d.favoriteMeals,
       dayTypeOverrides: d.dayTypeOverrides,
       races: d.races,
       records: d.records,
@@ -48,7 +48,7 @@ export function toDocs(d: AppData): Record<string, Record<string, unknown>> {
   for (const k of DATED) {
     const byYear = new Map<string, unknown[]>()
     for (const it of d[k] as { date: string }[]) {
-      const y = it.date?.slice(0, 4) || '0000'
+      const y = (MONTHLY.has(k) ? it.date?.slice(0, 7) : it.date?.slice(0, 4)) || '0000'
       byYear.set(y, [...(byYear.get(y) ?? []), it])
     }
     byYear.forEach((items, y) => (docs[`${k}-${y}`] = clean({ items })))

@@ -235,6 +235,7 @@ export function useActivityImport() {
 
 const QUICK: { kind: FormKind; label: string; desc: string; icon: ReactNode; accent: Accent }[] = [
   { kind: 'run', label: 'Course', desc: 'Footing, fractionné…', icon: <Footprints size={20} />, accent: 'run' },
+  { kind: 'food', label: 'Repas', desc: 'Ce que j’ai mangé', icon: <Utensils size={20} />, accent: 'food' },
   { kind: 'renfo', label: 'Renfo', desc: 'Gainage, PPG, mobilité', icon: <Activity size={20} />, accent: 'renfo' },
   { kind: 'muscu', label: 'Muscu', desc: 'Séries, charges', icon: <Dumbbell size={20} />, accent: 'muscu' },
   { kind: 'sleep', label: 'Sommeil', desc: 'Ma nuit, ma forme', icon: <BedDouble size={20} />, accent: 'sleep' },
@@ -249,7 +250,7 @@ export function QuickAddSheet() {
     <>
       {imp.input}
       <Sheet open={quickAddOpen} onClose={() => setQuickAdd(false)} title="Que veux-tu enregistrer ?">
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {QUICK.map((q) => (
             <button key={q.kind} type="button" onClick={() => openForm(q.kind)} className="flex flex-col items-start gap-2 rounded-2xl border border-line bg-surface-2 p-3.5 text-left transition hover:bg-surface-3">
               <span className={clsx('grid size-10 place-items-center rounded-xl', ACCENT_BG_SOFT[q.accent], ACCENT_TEXT[q.accent])}>{q.icon}</span>
@@ -259,21 +260,23 @@ export function QuickAddSheet() {
               </span>
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setQuickAdd(false)
+              imp.open()
+            }}
+            className="flex flex-col items-start gap-2 rounded-2xl border border-dashed border-line p-3.5 text-left transition hover:bg-surface-2"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-surface-3 text-ink-2">
+              <FileUp size={20} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold">Fichier de montre</span>
+              <span className="block text-xs text-ink-3">.fit, .gpx, .tcx</span>
+            </span>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setQuickAdd(false)
-            imp.open()
-          }}
-          className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-dashed border-line p-3.5 text-left text-sm transition hover:bg-surface-2"
-        >
-          <FileUp size={20} className="text-ink-2" />
-          <span>
-            <span className="block font-semibold">Importer depuis ma montre</span>
-            <span className="block text-xs text-ink-3">Fichiers .fit, .gpx ou .tcx (COROS, Garmin, Strava…)</span>
-          </span>
-        </button>
       </Sheet>
     </>
   )

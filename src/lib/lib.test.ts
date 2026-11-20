@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fmtDuration, fmtPace, parseDuration, parsePace, sleepDurationMin, addDaysISO, weekStartISO } from './format'
 import { bestEfforts, dailyLoads, intensitySplit, karvonenZones, loadStatus, predictTime, prepPhase, riegel, timeFromVdot, vdotFromPerformance } from './running'
-import { candidateMeals, dailyTargets, detectDayType, mealFitsProfile } from './nutrition'
-import { MEALS } from '../data/meals'
+import { dailyTargets, detectDayType } from './nutrition'
 import { emptyData, normalizeData } from '../store/useStore'
 import type { Run } from '../types'
 
@@ -88,24 +87,6 @@ describe('course', () => {
 })
 
 describe('nutrition', () => {
-  it('respecte le régime', () => {
-    const p = { ...emptyData().profile, diet: 'vegan' as const }
-    for (const slot of ['petit_dej', 'dejeuner', 'collation', 'diner'] as const) {
-      const list = candidateMeals(slot, 'repos', p)
-      expect(list.length).toBeGreaterThan(0)
-      expect(list.every((m) => m.diet === 'vegan')).toBe(true)
-    }
-    const pesce = { ...p, diet: 'pescetarien' as const }
-    expect(MEALS.filter((m) => mealFitsProfile(m, pesce)).some((m) => m.diet === 'omnivore')).toBe(false)
-  })
-  it('chaque créneau a des idées pour chaque type de journée', () => {
-    const p = emptyData().profile
-    for (const slot of ['petit_dej', 'dejeuner', 'collation', 'diner'] as const)
-      for (const t of ['repos', 'facile', 'intense', 'long', 'veille_course', 'jour_course'] as const) expect(candidateMeals(slot, t, p).length).toBeGreaterThan(0)
-  })
-  it('identifiants de repas uniques', () => {
-    expect(new Set(MEALS.map((m) => m.id)).size).toBe(MEALS.length)
-  })
   it('détecte veille et jour de course', () => {
     const d = { ...emptyData(), races: [{ id: 'r', name: 'Semi', date: '2026-12-06', kind: 'route' as const, distanceKm: 21.1, priority: 'A' as const }] }
     expect(detectDayType('2026-12-05', d).type).toBe('veille_course')

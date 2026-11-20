@@ -1,66 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
-import clsx from 'clsx'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
 import type { MuscuExercise, MuscuSession, PersonalRecord, PlannedKind, PlannedWorkout, Race, RaceKind, RenfoExercise, RenfoFocus, RenfoSession, Run, RunType, Shoe, SleepEntry } from '../types'
-import { Button, Field, IconButton, Input, Modal, NumberInput, Rating, Select, Textarea } from './ui'
+import { Button, Field, IconButton, Input, NumberInput, Rating, Select, Textarea } from './ui'
+import { FormShell, Row } from './formShell'
+import { CaloriesForm, FoodEntryForm, FoodForm } from './food'
 import { fmtDuration, fmtPace, fmtNum, paceSecPerKm, parseDuration, sleepDurationMin, todayISO, uid } from '../lib/format'
 import { BACKYARD_LOOP_KM, RACE_KIND_LABEL, RUN_TYPES, RUN_TYPE_ORDER, STANDARD_DISTANCES, loopKmOf } from '../lib/running'
 import { MUSCU_EXERCISES, MUSCU_TEMPLATES, RENFO_FOCUS_LABEL } from '../data/training'
-
-// ── Coquille commune ───────────────────────────────────────
-function FormShell({ title, children, onSave, onDelete, canSave = true, wide }: { title: string; children: ReactNode; onSave: () => void; onDelete?: () => void; canSave?: boolean; wide?: boolean }) {
-  const close = useUi((s) => s.closeForm)
-  const ask = useUi((s) => s.ask)
-  return (
-    <Modal
-      open
-      wide={wide}
-      onClose={close}
-      title={title}
-      footer={
-        <>
-          {onDelete && (
-            <Button
-              variant="danger"
-              className="mr-auto"
-              icon={<Trash2 size={16} />}
-              onClick={async () => {
-                if (await ask({ title: 'Supprimer cet élément ?', text: 'Cette action est définitive.', confirmLabel: 'Supprimer', danger: true })) {
-                  onDelete()
-                  close()
-                }
-              }}
-            >
-              Supprimer
-            </Button>
-          )}
-          <Button variant="ghost" onClick={close}>
-            Annuler
-          </Button>
-          <Button variant="primary" disabled={!canSave} onClick={onSave}>
-            Enregistrer
-          </Button>
-        </>
-      }
-    >
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (canSave) onSave()
-        }}
-      >
-        {children}
-        <button type="submit" className="hidden" />
-      </form>
-    </Modal>
-  )
-}
-
-function Row({ children, cols = 2 }: { children: ReactNode; cols?: 2 | 3 }) {
-  return <div className={clsx('grid gap-3', cols === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3')}>{children}</div>
-}
 
 /** Champ durée tolérant : "45", "45:30", "1:02:15", "1h02". En mode "hm", "7:45" = 7 h 45. */
 function DurationInput({ value, onChange, placeholder = 'ex. 45:30', mode = 'auto' }: { value: number | undefined; onChange: (s: number | undefined) => void; placeholder?: string; mode?: 'auto' | 'hm' }) {
@@ -894,5 +841,11 @@ export function FormHost() {
       return <PlannedForm key={key} initial={init} />
     case 'goals':
       return <GoalsForm key={key} />
+    case 'food':
+      return <FoodForm key={key} initial={init} />
+    case 'foodEntry':
+      return <FoodEntryForm key={key} initial={init} />
+    case 'calories':
+      return <CaloriesForm key={key} />
   }
 }

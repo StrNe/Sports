@@ -1,6 +1,5 @@
-import type { AppData, DayType, Diet, ISODate, MealSlot, Profile } from '../types'
-import { MEALS, mealById, type Meal } from '../data/meals'
-import { addDaysISO, hashString } from './format'
+import type { AppData, DayType, ISODate, MealSlot, Profile } from '../types'
+import { addDaysISO } from './format'
 import { RUN_TYPES } from './running'
 
 export interface DayTypeMeta {
@@ -61,53 +60,6 @@ export const DAY_TYPES: Record<DayType, DayTypeMeta> = {
     summary: 'Petit-déjeuner testé 3 h avant, ravitaillement régulier, récup après.',
     tips: ['Petit-déjeuner 3 h avant le départ', 'Encas digeste 1 h avant (compote, biscuits)', 'Pendant : glucides toutes les 20–30 min', 'Après : boisson de récup + vrai repas'],
   },
-}
-
-export const DIET_LABEL: Record<Diet, string> = {
-  omnivore: 'Omnivore',
-  pescetarien: 'Pescétarien',
-  vegetarien: 'Végétarien',
-  vegan: 'Végan',
-}
-
-const DIET_RANK: Record<Diet, number> = { vegan: 0, vegetarien: 1, pescetarien: 2, omnivore: 3 }
-
-export function mealFitsProfile(meal: Meal, p: Profile): boolean {
-  // Un repas végétarien convient à un pescétarien, etc. ; on vérifie seulement que le repas n'est pas "moins restrictif" que le régime.
-  if (p.diet === 'pescetarien') {
-    if (meal.diet === 'omnivore') return false
-  } else if (DIET_RANK[meal.diet] > DIET_RANK[p.diet]) return false
-  if (p.noGluten && !meal.glutenFree) return false
-  if (p.noLactose && !meal.lactoseFree) return false
-  return true
-}
-
-export function candidateMeals(slot: MealSlot, dayType: DayType, p: Profile): Meal[] {
-  const forSlot = MEALS.filter((m) => m.slot === slot && mealFitsProfile(m, p))
-  const ideal = forSlot.filter((m) => m.goodFor.length === 0 || m.goodFor.includes(dayType))
-  return ideal.length ? ideal : forSlot
-}
-
-/** Repas du jour : choix manuel s'il existe, sinon choix déterministe selon la date. */
-export function mealFor(date: ISODate, slot: MealSlot, dayType: DayType, data: Pick<AppData, 'profile' | 'mealPicks' | 'favoriteMeals'>): Meal | undefined {
-  const picked = data.mealPicks[date]?.[slot]
-  if (picked) {
-    const meal = mealById(picked)
-    if (meal) return meal
-  }
-  const list = candidateMeals(slot, dayType, data.profile)
-  if (!list.length) return undefined
-  // Les favoris ont deux fois plus de chances d'être proposés
-  const weighted = list.flatMap((m) => (data.favoriteMeals.includes(m.id) ? [m, m] : [m]))
-  return weighted[hashString(`${date}-${slot}`) % weighted.length]
-}
-
-export function nextMeal(current: Meal | undefined, slot: MealSlot, dayType: DayType, p: Profile): Meal | undefined {
-  const list = candidateMeals(slot, dayType, p)
-  if (!list.length) return undefined
-  const others = list.filter((m) => m.id !== current?.id)
-  if (!others.length) return list[0]
-  return others[Math.floor(Math.random() * others.length)]
 }
 
 // ── Détection du type de journée ───────────────────────────
@@ -175,18 +127,15 @@ export function dailyTargets(p: Profile, dayType: DayType): DailyTargets {
   return { kcal, carbs, protein, fat, waterL, weightUsed: w, estimated: !p.weightKg }
 }
 
-/** Liste de courses agrégée pour un ensemble de repas */
-export function shoppingList(meals: Meal[]): { item: string; count: number }[] {
-  const map = new Map<string, number>()
-  for (const meal of meals) {
-    for (const ing of meal.ingredients) {
-      if (/préparer|à préparer/i.test(ing) && ing.includes('—')) {
-        const base = ing.split('—')[0].trim()
-        map.set(base, (map.get(base) ?? 0) + 1)
-        continue
-      }
-      map.set(ing, (map.get(ing) ?? 0) + 1)
-    }
-  }
-  return [...map.entries()].map(([item, count]) => ({ item, count })).sort((a, b) => a.item.localeCompare(b.item, 'fr'))
+export const MEAL_SLOTS: { key: MealSlot; label: string; short: string; emoji: string; until: number }[] = [
+  { key: 'petit_dej', label: 'Petit-déjeuner', short: 'Petit-déj', emoji: '☕', until: 11 },
+  { key: 'dejeuner', label: 'Déjeuner', short: 'Déjeuner', emoji: '🍽️', until: 15 },
+  { key: 'collation', label: 'Collation', short: 'Collation', emoji: '🍌', until: 18 },
+  { key: 'diner', label: 'Dîner', short: 'Dîner', emoji: '🌙', until: 24 },
+]
+
+/** Le repas le plus probable selon l'heure */
+export function slotForNow(d = new Date()): MealSlot {
+  const h = d.getHours()
+  return (MEAL_SLOTS.find((x) => h < x.until) ?? MEAL_SLOTS[3]).key
 }

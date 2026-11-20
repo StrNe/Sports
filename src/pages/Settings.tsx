@@ -6,9 +6,9 @@ import { useActivityImport } from '../components/layout'
 import { SyncSettingsCard } from '../components/sync'
 import { downloadJson, readBackup } from '../lib/importers'
 import { fmtPace, parsePace, todayISO } from '../lib/format'
-import { DIET_LABEL } from '../lib/nutrition'
+import { ACTIVITY_LEVELS, CALORIE_GOALS } from '../lib/energy'
 import { demoData } from '../data/demo'
-import type { Diet, Theme } from '../types'
+import type { Theme } from '../types'
 
 function Section({ icon, title, subtitle, children }: { icon: ReactNode; title: string; subtitle?: string; children: ReactNode }) {
   return (
@@ -23,6 +23,7 @@ export default function Settings() {
   const s = useStore()
   const { profile, setProfile, theme, setTheme } = s
   const notify = useUi((x) => x.notify)
+  const openForm = useUi((x) => x.openForm)
   const ask = useUi((x) => x.ask)
   const cloudState = useUi((x) => x.cloud.state)
   const imp = useActivityImport()
@@ -141,26 +142,18 @@ export default function Settings() {
           </Field>
         </Section>
 
-        <Section icon={<Utensils size={16} />} title="Alimentation">
-          <Field label="Régime">
-            <Select value={profile.diet} onChange={(e) => setProfile({ diet: e.target.value as Diet })}>
-              {Object.entries(DIET_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="size-4" checked={!!profile.noGluten} onChange={(e) => setProfile({ noGluten: e.target.checked })} />
-              Sans gluten
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="size-4" checked={!!profile.noLactose} onChange={(e) => setProfile({ noLactose: e.target.checked })} />
-              Sans lactose
-            </label>
+        <Section icon={<Utensils size={16} />} title="Calories">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-xl bg-surface-2 p-3">
+              <p className="text-xs text-ink-3">Objectif</p>
+              <p className="mt-0.5 font-semibold">{CALORIE_GOALS[profile.calorieGoal ?? 'maintien'].label}</p>
+            </div>
+            <div className="rounded-xl bg-surface-2 p-3">
+              <p className="text-xs text-ink-3">Journée hors sport</p>
+              <p className="mt-0.5 font-semibold">{ACTIVITY_LEVELS[profile.activityLevel ?? 'sedentaire'].label}</p>
+            </div>
           </div>
+          <Button onClick={() => openForm('calories')}>Modifier mes besoins en calories</Button>
         </Section>
 
         <Section icon={<Palette size={16} />} title="Apparence">

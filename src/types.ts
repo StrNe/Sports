@@ -205,6 +205,47 @@ export interface Profile {
   diet: Diet
   noGluten?: boolean
   noLactose?: boolean
+  /** Objectif calorique : garder, perdre ou prendre du poids */
+  calorieGoal?: CalorieGoal
+  /** Activité de la journée hors sport */
+  activityLevel?: ActivityLevel
+  /** Objectif de calories fixé à la main (remplace le calcul) */
+  kcalTarget?: number
+}
+
+export type CalorieGoal = 'maintien' | 'perte' | 'prise'
+export type ActivityLevel = 'sedentaire' | 'modere' | 'actif'
+
+/** Un aliment ou un plat noté dans le journal */
+export interface FoodEntry {
+  id: string
+  date: ISODate
+  slot: MealSlot
+  name: string
+  /** Quantité en clair : « 250 g », « 2 tranches » */
+  quantity?: string
+  kcal: number
+  carbs?: number
+  protein?: number
+  fat?: number
+  /** Comment la valeur a été obtenue */
+  source?: 'ia' | 'base' | 'manuel'
+}
+
+/** Activité quotidienne mesurée par la montre */
+export interface DailyActivity {
+  id: string
+  date: ISODate
+  steps: number
+  /** Calories actives (pas + sport), hors métabolisme de base */
+  activeKcal: number
+  exerciseMin?: number
+}
+
+export interface WeightEntry {
+  id: string
+  date: ISODate
+  kg: number
 }
 
 export type Theme = 'system' | 'light' | 'dark'
@@ -223,9 +264,12 @@ export interface AppData {
   shoes: Shoe[]
   planned: PlannedWorkout[]
   renfoTemplates: RenfoTemplate[]
-  /** Repas choisis manuellement : date → créneau → id du repas */
-  mealPicks: Record<ISODate, Partial<Record<MealSlot, string>>>
-  favoriteMeals: string[]
+  /** Journal alimentaire */
+  food: FoodEntry[]
+  /** Pas et calories actives par jour (montre) */
+  activity: DailyActivity[]
+  /** Pesées */
+  weights: WeightEntry[]
   /** Type de journée forcé pour la nutrition */
   dayTypeOverrides: Record<ISODate, DayType>
   theme: Theme
