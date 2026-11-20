@@ -17,7 +17,7 @@ function exerciseLine(e: RenfoExercise): string {
 
 function TemplateCard({ t }: { t: RenfoTemplate }) {
   const [open, setOpen] = useState(false)
-  const { openForm } = useUi()
+  const { openForm, ask } = useUi()
   const remove = useStore((s) => s.remove)
   return (
     <div className="flex flex-col rounded-2xl border border-line bg-surface p-4">
@@ -33,7 +33,7 @@ function TemplateCard({ t }: { t: RenfoTemplate }) {
           </div>
         </div>
         {!t.builtin && (
-          <IconButton label="Supprimer le modèle" onClick={() => confirm(`Supprimer le modèle « ${t.title} » ?`) && remove('renfoTemplates', t.id)}>
+          <IconButton label="Supprimer le modèle" onClick={async () => (await ask({ title: `Supprimer le modèle « ${t.title} » ?`, confirmLabel: 'Supprimer', danger: true })) && remove('renfoTemplates', t.id)}>
             <Trash2 size={15} />
           </IconButton>
         )}

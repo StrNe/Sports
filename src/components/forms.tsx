@@ -11,6 +11,7 @@ import { MUSCU_EXERCISES, MUSCU_TEMPLATES, RENFO_FOCUS_LABEL } from '../data/tra
 // ── Coquille commune ───────────────────────────────────────
 function FormShell({ title, children, onSave, onDelete, canSave = true, wide }: { title: string; children: ReactNode; onSave: () => void; onDelete?: () => void; canSave?: boolean; wide?: boolean }) {
   const close = useUi((s) => s.closeForm)
+  const ask = useUi((s) => s.ask)
   return (
     <Modal
       open
@@ -24,8 +25,8 @@ function FormShell({ title, children, onSave, onDelete, canSave = true, wide }: 
               variant="danger"
               className="mr-auto"
               icon={<Trash2 size={16} />}
-              onClick={() => {
-                if (confirm('Supprimer définitivement cet élément ?')) {
+              onClick={async () => {
+                if (await ask({ title: 'Supprimer cet élément ?', text: 'Cette action est définitive.', confirmLabel: 'Supprimer', danger: true })) {
                   onDelete()
                   close()
                 }

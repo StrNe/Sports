@@ -221,6 +221,16 @@ export interface AppData {
   /** Type de journée forcé pour la nutrition */
   dayTypeOverrides: Record<ISODate, DayType>
   theme: Theme
+  sync?: SyncState
+}
+
+export interface SyncState {
+  /** Dernier jour synchronisé avec COROS */
+  corosLastDate?: ISODate
+  /** Horodatage (ms) de la dernière synchronisation COROS */
+  corosAt?: number
+  /** Synchroniser automatiquement à l'ouverture */
+  corosAuto?: boolean
 }
 
 export type DayType = 'repos' | 'facile' | 'intense' | 'long' | 'veille_course' | 'jour_course'

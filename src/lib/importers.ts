@@ -1,5 +1,6 @@
 import type { AppData, Run, RunType } from '../types'
 import { toISO, uid } from './format'
+import { inClaude, useCapability } from './claude'
 
 export interface ImportResult {
   runs: Run[]
@@ -155,8 +156,20 @@ export async function importActivityFiles(files: FileList | File[]): Promise<Imp
 }
 
 // ── Sauvegarde JSON ─────────────────────────────────────────
-export function downloadJson(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+export async function downloadJson(data: unknown, filename: string): Promise<'ok' | 'declined' | 'error'> {
+  const json = JSON.stringify(data, null, 2)
+  if (inClaude()) {
+    // Dans claude.ai, les liens de téléchargement sont bloqués : on passe par la fonction dédiée
+    const downloads = await useCapability('downloads')
+    if (!downloads) return 'error'
+    try {
+      await downloads.save({ filename, data: json })
+      return 'ok'
+    } catch (e) {
+      return (e as { code?: string }).code === 'declined' ? 'declined' : 'error'
+    }
+  }
+  const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -165,6 +178,7 @@ export function downloadJson(data: unknown, filename: string) {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return 'ok'
 }
 
 export async function readBackup(file: File): Promise<Partial<AppData>> {

@@ -3,6 +3,7 @@ import { Database, Download, FileUp, HeartPulse, Moon, Palette, Smartphone, Tras
 import { useStore, useUi, snapshot } from '../store/useStore'
 import { Button, Callout, Card, CardTitle, Field, Input, NumberInput, PageHeader, Segmented, Select } from '../components/ui'
 import { useActivityImport } from '../components/layout'
+import { SyncSettingsCard } from '../components/sync'
 import { downloadJson, readBackup } from '../lib/importers'
 import { fmtPace, parsePace, todayISO } from '../lib/format'
 import { DIET_LABEL } from '../lib/nutrition'
@@ -22,6 +23,8 @@ export default function Settings() {
   const s = useStore()
   const { profile, setProfile, theme, setTheme } = s
   const notify = useUi((x) => x.notify)
+  const ask = useUi((x) => x.ask)
+  const cloudState = useUi((x) => x.cloud.state)
   const imp = useActivityImport()
   const backupRef = useRef<HTMLInputElement>(null)
   const [importMode, setImportMode] = useState<'fusion' | 'remplacer'>('fusion')
@@ -49,7 +52,7 @@ export default function Settings() {
           try {
             const data = await readBackup(f)
             if (importMode === 'remplacer') {
-              if (!confirm('Remplacer toutes tes données actuelles par celles du fichier ?')) return
+              if (!(await ask({ title: 'Remplacer toutes tes données ?', text: 'Les données actuelles seront remplacées par celles du fichier.', confirmLabel: 'Remplacer', danger: true }))) return
               s.replaceAll(data as never)
               notify('Sauvegarde restaurée ✅')
             } else {
@@ -180,7 +183,11 @@ export default function Settings() {
       </div>
 
       <div className="mt-4">
-        <Section icon={<Database size={16} />} title="Mes données" subtitle="Tout est stocké dans ce navigateur, sur cet appareil uniquement">
+        <SyncSettingsCard />
+      </div>
+
+      <div className="mt-4">
+        <Section icon={<Database size={16} />} title="Mes données" subtitle="Sauvegarde, import et réinitialisation">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {counts.map(([label, n]) => (
               <div key={label} className="rounded-xl bg-surface-2 p-3">
@@ -189,11 +196,16 @@ export default function Settings() {
               </div>
             ))}
           </div>
-          <Callout icon="💾" title="Pense à exporter régulièrement">
-            Tes données ne quittent jamais ton appareil. Exporte une sauvegarde de temps en temps (ou pour passer de l’ordinateur au téléphone) et réimporte-la de l’autre côté.
-          </Callout>
+          {cloudState !== 'saved' && (
+            <Callout icon="💾" title="Pense à exporter régulièrement">
+              Ici, tes données restent dans ce navigateur. Exporte une sauvegarde de temps en temps (ou pour passer de l’ordinateur au téléphone) et réimporte-la de l’autre côté.
+            </Callout>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" icon={<Download size={16} />} onClick={() => downloadJson(snapshot(), `foulee-sauvegarde-${todayISO()}.json`)}>
+            <Button variant="primary" icon={<Download size={16} />} onClick={async () => {
+                const r = await downloadJson(snapshot(), `foulee-sauvegarde-${todayISO()}.json`)
+                if (r === 'error') notify('Le téléchargement a échoué', 'error')
+              }}>
               Exporter une sauvegarde
             </Button>
             <div className="flex items-center gap-2">
@@ -212,8 +224,8 @@ export default function Settings() {
           <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             <Button
               variant="soft"
-              onClick={() => {
-                if (s.runs.length && !confirm('Ajouter les données de démonstration à tes données actuelles ?')) return
+              onClick={async () => {
+                if (s.runs.length && !(await ask({ title: 'Ajouter les données de démo ?', text: 'Des séances fictives seront mélangées à tes vraies données.', confirmLabel: 'Ajouter' }))) return
                 const { added } = s.mergeAll(demoData())
                 if (!profile.name) setProfile(demoData().profile!)
                 notify(`Démo chargée (${added} éléments)`)
@@ -224,8 +236,8 @@ export default function Settings() {
             <Button
               variant="danger"
               icon={<Trash2 size={16} />}
-              onClick={() => {
-                if (confirm('Effacer TOUTES tes données ? Exporte une sauvegarde avant si besoin.') && confirm('Vraiment tout effacer ? Cette action est irréversible.')) {
+              onClick={async () => {
+                if (await ask({ title: 'Effacer toutes tes données ?', text: 'Séances, nuits, courses, records et réglages seront supprimés définitivement. Exporte une sauvegarde avant si besoin.', confirmLabel: 'Tout effacer', danger: true })) {
                   s.resetAll()
                   notify('Toutes les données ont été effacées')
                 }

@@ -5,6 +5,7 @@ import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleChec
 import { useStore, useUi, type FormKind } from '../store/useStore'
 import { ACCENT_BG_SOFT, ACCENT_TEXT, type Accent } from './ui'
 import { importActivityFiles } from '../lib/importers'
+import { SyncIndicator } from './sync'
 
 interface NavItem {
   to: string
@@ -48,7 +49,12 @@ export const NAV: { group: string; items: NavItem[] }[] = [
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <img src="icon.svg" alt="" className="size-8 rounded-[9px]" />
+      <svg viewBox="0 0 512 512" className="size-8" aria-hidden="true">
+        <rect width="512" height="512" rx="112" fill="#eb6834" />
+        <path d="M150 346c40-6 70-28 92-62l30-48c18-28 44-44 80-48" fill="none" stroke="#fff" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="350" cy="150" r="30" fill="#fff" />
+        <path d="M120 400h272" stroke="#fff" strokeOpacity=".55" strokeWidth="28" strokeLinecap="round" />
+      </svg>
       <span className="text-lg font-bold tracking-tight">Foulée</span>
     </div>
   )
@@ -62,10 +68,13 @@ export function Sidebar() {
       <div className="px-2">
         <Logo />
       </div>
+      <div className="mt-3">
+        <SyncIndicator />
+      </div>
       <button
         type="button"
         onClick={() => setQuickAdd(true)}
-        className="mx-1 mt-6 flex h-10 items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-white transition hover:brightness-110"
+        className="mx-1 mt-3 flex h-10 items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-white transition hover:brightness-110"
       >
         <Plus size={18} /> Ajouter
       </button>
@@ -107,9 +116,12 @@ export function MobileTopBar() {
   return (
     <div className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/85 px-4 py-3 backdrop-blur-md lg:hidden">
       <Logo />
-      <NavLink to="/reglages" aria-label="Profil et données" className="grid size-9 place-items-center rounded-full bg-surface-3 text-ink-2">
-        <Settings size={18} />
-      </NavLink>
+      <div className="flex items-center gap-2">
+        <SyncIndicator compact />
+        <NavLink to="/reglages" aria-label="Profil et données" className="grid size-9 place-items-center rounded-full bg-surface-3 text-ink-2">
+          <Settings size={18} />
+        </NavLink>
+      </div>
     </div>
   )
 }

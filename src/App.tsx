@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import { useStore } from './store/useStore'
 import { BottomNav, MobileTopBar, MoreSheet, QuickAddSheet, Sidebar, Toast } from './components/layout'
 import { FormHost } from './components/forms'
+import { ConfirmHost, SyncBoot } from './components/sync'
 import Dashboard from './pages/Dashboard'
 
 // Les pages secondaires sont chargées à la demande pour accélérer le premier affichage
@@ -20,14 +21,23 @@ function useTheme() {
   const theme = useStore((s) => s.theme)
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const root = document.documentElement
     const apply = () => {
-      const dark = theme === 'dark' || (theme === 'system' && mq.matches)
+      // Dans claude.ai, le thème choisi par le lecteur est posé sur data-theme
+      const host = root.getAttribute('data-theme')
+      const systemDark = host === 'dark' ? true : host === 'light' ? false : mq.matches
+      const dark = theme === 'dark' || (theme === 'system' && systemDark)
       document.documentElement.classList.toggle('dark', dark)
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f0f0e' : '#f4f4f1')
     }
     apply()
     mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
+    const obs = new MutationObserver(apply)
+    obs.observe(root, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => {
+      mq.removeEventListener('change', apply)
+      obs.disconnect()
+    }
   }, [theme])
 }
 
@@ -65,6 +75,8 @@ export default function App() {
       <QuickAddSheet />
       <MoreSheet />
       <FormHost />
+      <ConfirmHost />
+      <SyncBoot />
       <Toast />
     </div>
   )

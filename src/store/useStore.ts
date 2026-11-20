@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { AppData, DayType, ISODate, MealSlot, PlannedWorkout, Profile, Run, Theme } from '../types'
+import type { AppData, DayType, ISODate, MealSlot, PlannedWorkout, Profile, Run, SyncState, Theme } from '../types'
 import { BUILTIN_RENFO } from '../data/training'
 
 export const DATA_VERSION = 1
@@ -35,6 +35,7 @@ export function emptyData(): AppData {
     favoriteMeals: [],
     dayTypeOverrides: {},
     theme: 'system',
+    sync: { corosAuto: true },
   }
 }
 
@@ -42,6 +43,8 @@ interface Actions {
   upsert: <K extends CollectionKey>(key: K, item: Item<K>) => void
   upsertMany: <K extends CollectionKey>(key: K, items: Item<K>[]) => void
   remove: (key: CollectionKey, id: string) => void
+  removeMany: (key: CollectionKey, ids: string[]) => void
+  setSync: (patch: Partial<SyncState>) => void
   setProfile: (p: Partial<Profile>) => void
   setTheme: (t: Theme) => void
   setMealPick: (date: ISODate, slot: MealSlot, mealId: string | undefined) => void
@@ -75,6 +78,7 @@ export function normalizeData(input: Partial<AppData>): AppData {
     favoriteMeals: input.favoriteMeals ?? [],
     dayTypeOverrides: input.dayTypeOverrides ?? {},
     theme: input.theme ?? 'system',
+    sync: { corosAuto: true, ...(input.sync ?? {}) },
   } as AppData
   for (const k of COLLECTIONS) {
     const v = (input as Record<string, unknown>)[k]
@@ -108,6 +112,12 @@ export const useStore = create<Store>()(
         }),
 
       remove: (key, id) => set((s) => ({ [key]: (s[key] as { id: string }[]).filter((x) => x.id !== id) }) as Partial<Store>),
+
+      removeMany: (key, ids) => {
+        const set_ = new Set(ids)
+        set((s) => ({ [key]: (s[key] as { id: string }[]).filter((x) => !set_.has(x.id)) }) as Partial<Store>)
+      },
+      setSync: (patch) => set((s) => ({ sync: { ...(s.sync ?? {}), ...patch } })),
 
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
       setTheme: (theme) => set({ theme }),
@@ -201,7 +211,28 @@ export function snapshot(): AppData {
 // ── État d'interface (non persisté) ─────────────────────────
 export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned'
 
+export type CorosStatus =
+  | { state: 'unavailable' }
+  | { state: 'idle' }
+  | { state: 'syncing'; step?: string }
+  | { state: 'ok'; added: number }
+  | { state: 'error'; code: string; message: string }
+
+export interface ConfirmRequest {
+  title: string
+  text?: string
+  confirmLabel?: string
+  danger?: boolean
+  resolve: (ok: boolean) => void
+}
+
 interface UiState {
+  coros: CorosStatus
+  cloud: { state: 'off' | 'loading' | 'saved' | 'saving' | 'error'; detail?: string }
+  confirmReq: ConfirmRequest | null
+  setCoros: (s: CorosStatus) => void
+  setCloud: (s: UiState['cloud']) => void
+  ask: (req: Omit<ConfirmRequest, 'resolve'>) => Promise<boolean>
   form: { kind: FormKind; initial?: unknown } | null
   quickAddOpen: boolean
   moreOpen: boolean
@@ -214,6 +245,23 @@ interface UiState {
 }
 
 export const useUi = create<UiState>()((set) => ({
+  coros: { state: 'unavailable' },
+  cloud: { state: 'off' },
+  confirmReq: null,
+  setCoros: (coros) => set({ coros }),
+  setCloud: (cloud) => set({ cloud }),
+  ask: (req) =>
+    new Promise<boolean>((resolve) =>
+      set({
+        confirmReq: {
+          ...req,
+          resolve: (ok) => {
+            set({ confirmReq: null })
+            resolve(ok)
+          },
+        },
+      }),
+    ),
   form: null,
   quickAddOpen: false,
   moreOpen: false,
