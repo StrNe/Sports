@@ -37,7 +37,7 @@ export function emptyData(): AppData {
     products: [],
     chores: [],
     dayTypeOverrides: {},
-    theme: 'system',
+    theme: 'dark',
     sync: { corosAuto: true },
   }
 }
@@ -76,7 +76,8 @@ export function normalizeData(input: Partial<AppData>): AppData {
     version: DATA_VERSION,
     profile: { ...base.profile, ...(input.profile ?? {}) },
     dayTypeOverrides: input.dayTypeOverrides ?? {},
-    theme: input.theme ?? 'system',
+    // Sombre par défaut (l'ancien réglage « système » devient sombre)
+    theme: input.theme === 'light' || input.theme === 'auto' ? input.theme : 'dark',
     sync: { corosAuto: true, ...(input.sync ?? {}) },
   } as AppData
   for (const k of COLLECTIONS) {

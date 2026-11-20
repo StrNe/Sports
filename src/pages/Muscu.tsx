@@ -107,7 +107,7 @@ export default function Muscu() {
 
       {!muscu.length ? (
         <Callout icon="🏋️" title="Pourquoi la muscu quand on court ?">
-          Deux séances de force par semaine améliorent l’économie de course (tu dépenses moins d’énergie à la même allure) et réduisent le risque de blessure. Lance un des programmes ci-dessous : Foulée suivra ensuite tes charges, ton 1RM estimé et tes records.
+          Deux séances de force par semaine améliorent l’économie de course (tu dépenses moins d’énergie à la même allure) et réduisent le risque de blessure. Lance un des programmes ci-dessous : Life suivra ensuite tes charges, ton 1RM estimé et tes records.
         </Callout>
       ) : (
         <>

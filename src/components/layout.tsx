@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleCheck, Dumbbell, Ellipsis, FileUp, Flag, Footprints, House, ListChecks, Moon, Plus, Settings, SprayCan, TriangleAlert, Trophy, Utensils, X } from 'lucide-react'
@@ -48,16 +48,22 @@ export const NAV: { group: string; items: NavItem[] }[] = [
   },
 ]
 
+/** Logo Life : un tracé de pouls sur un dégradé orange → framboise */
 function Logo() {
+  const id = 'life-logo' + useId().replace(/[^a-zA-Z0-9_-]/g, '')
   return (
     <div className="flex items-center gap-2.5">
       <svg viewBox="0 0 512 512" className="size-8" aria-hidden="true">
-        <rect width="512" height="512" rx="112" fill="#eb6834" />
-        <path d="M150 346c40-6 70-28 92-62l30-48c18-28 44-44 80-48" fill="none" stroke="#fff" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="350" cy="150" r="30" fill="#fff" />
-        <path d="M120 400h272" stroke="#fff" strokeOpacity=".55" strokeWidth="28" strokeLinecap="round" />
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#ff8a3d" />
+            <stop offset="1" stopColor="#e2416f" />
+          </linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="128" fill={`url(#${id})`} />
+        <path d="M92 278h82l38-92 66 176 40-112 24 28h78" fill="none" stroke="#fff" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="text-lg font-bold tracking-tight">Foulée</span>
+      <span className="text-lg font-bold tracking-tight">Life</span>
     </div>
   )
 }

@@ -21,7 +21,7 @@ export function corosErrorMessage(e: McpError): string {
     case 'not_in_manifest':
     case 'approval_required':
     case 'consent_required':
-      return 'Foulée a besoin de ton accord pour lire tes données COROS. Clique sur « Autoriser et synchroniser ».'
+      return 'Life a besoin de ton accord pour lire tes données COROS. Clique sur « Autoriser et synchroniser ».'
     case 'blocked_by_policy':
       return 'L’accès à COROS est bloqué par les règles de ton organisation.'
     case 'server_unavailable':
@@ -81,7 +81,7 @@ export function runCorosSync(opts: { manual?: boolean; full?: boolean } = {}): P
         .planned.filter((p) => p.id.startsWith('coros-plan-') && p.date >= today && p.date <= res.plannedRange[1] && !p.done && !fresh.has(p.id))
         .map((p) => p.id)
       if (stale.length) useStore.getState().removeMany('planned', stale)
-      useStore.getState().setSync({ corosLastDate: today, corosAt: Date.now() })
+      useStore.getState().setSync({ corosLastDate: today, corosAt: Date.now(), ...(res.status.recovery ? { recovery: res.status.recovery } : {}), ...(res.status.load ? { load: res.status.load } : {}) })
       useUi.getState().setCoros({ state: 'ok', added })
       if (opts.manual || added) useUi.getState().notify(added ? `COROS : ${added} nouveauté${added > 1 ? 's' : ''} importée${added > 1 ? 's' : ''}` : 'COROS : tout est à jour')
     } catch (e) {
@@ -173,9 +173,9 @@ export function SyncSettingsCard() {
   if (!inClaude())
     return (
       <Card>
-        <CardTitle icon={<Watch size={16} />} title="Synchronisation COROS" subtitle="Disponible dans la version claude.ai de Foulée" />
+        <CardTitle icon={<Watch size={16} />} title="Synchronisation COROS" subtitle="Disponible dans la version claude.ai de Life" />
         <p className="text-sm text-ink-2">
-          Ouverte depuis claude.ai, Foulée lit directement ton compte COROS : tout ton historique, chaque nouvelle sortie, tes nuits et ton plan d’entraînement arrivent automatiquement, et tes données sont sauvegardées en ligne pour tous tes appareils. Ici, tu peux importer des fichiers .fit ou une sauvegarde.
+          Ouverte depuis claude.ai, Life lit directement ton compte COROS : tout ton historique, chaque nouvelle sortie, tes nuits et ton plan d’entraînement arrivent automatiquement, et tes données sont sauvegardées en ligne pour tous tes appareils. Ici, tu peux importer des fichiers .fit ou une sauvegarde.
         </p>
       </Card>
     )

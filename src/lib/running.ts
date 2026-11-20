@@ -84,13 +84,15 @@ export function loadStatus(loads: Map<ISODate, number>, today = todayISO()): Loa
     return { acute, chronicWeekly, ratio: undefined, zone: 'inconnu', label: 'Pas assez de données', advice: "Enregistre tes séances pendant 3–4 semaines pour obtenir ton ratio de charge." }
   }
   const ratio = acute / chronicWeekly
-  if (ratio < 0.8)
-    return { acute, chronicWeekly, ratio, zone: 'sous', label: 'Charge en baisse', advice: 'Semaine allégée : parfait pour récupérer, mais ne laisse pas la forme retomber trop longtemps.' }
-  if (ratio <= 1.3)
-    return { acute, chronicWeekly, ratio, zone: 'optimal', label: 'Charge optimale', advice: 'Tu progresses dans la zone idéale. Continue comme ça !' }
-  if (ratio <= 1.5)
-    return { acute, chronicWeekly, ratio, zone: 'vigilance', label: 'Charge élevée', advice: 'Hausse rapide de la charge : soigne le sommeil et garde les footings vraiment faciles.' }
-  return { acute, chronicWeekly, ratio, zone: 'risque', label: 'Risque de surcharge', advice: 'Charge très supérieure à ton habitude : allège les prochains jours pour éviter la blessure.' }
+  return { acute, chronicWeekly, ratio, ...ratioZone(ratio) }
+}
+
+/** Zone d'un ratio charge aiguë / chronique (le même barème sert pour le ratio fourni par la montre) */
+export function ratioZone(ratio: number): Pick<LoadStatus, 'zone' | 'label' | 'advice'> {
+  if (ratio < 0.8) return { zone: 'sous', label: 'Charge en baisse', advice: 'Semaine allégée : parfait pour récupérer, mais ne laisse pas la forme retomber trop longtemps.' }
+  if (ratio <= 1.3) return { zone: 'optimal', label: 'Charge optimale', advice: 'Tu progresses dans la zone idéale. Continue comme ça !' }
+  if (ratio <= 1.5) return { zone: 'vigilance', label: 'Charge élevée', advice: 'Hausse rapide de la charge : soigne le sommeil et garde les footings vraiment faciles.' }
+  return { zone: 'risque', label: 'Risque de surcharge', advice: 'Charge très supérieure à ton habitude : allège les prochains jours pour éviter la blessure.' }
 }
 
 // ── Agrégats hebdomadaires ─────────────────────────────────

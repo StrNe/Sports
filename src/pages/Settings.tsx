@@ -161,16 +161,16 @@ export default function Settings() {
             value={theme}
             onChange={(t: Theme) => setTheme(t)}
             options={[
-              { value: 'system', label: 'Automatique' },
-              { value: 'light', label: 'Clair' },
               { value: 'dark', label: 'Sombre' },
+              { value: 'light', label: 'Clair' },
+              { value: 'auto', label: 'Automatique' },
             ]}
           />
         </Section>
 
         <Section icon={<Smartphone size={16} />} title="Installer sur ton téléphone">
           <p className="text-sm text-ink-2">
-            Foulée fonctionne comme une application : sur iPhone, ouvre-la dans Safari puis <b>Partager → Sur l’écran d’accueil</b>. Sur Android, dans Chrome : <b>⋮ → Installer l’application</b>. Elle marche aussi hors connexion.
+            Life fonctionne comme une application : sur iPhone, ouvre-la dans Safari puis <b>Partager → Sur l’écran d’accueil</b>. Sur Android, dans Chrome : <b>⋮ → Installer l’application</b>. Elle marche aussi hors connexion.
           </p>
         </Section>
       </div>
@@ -196,7 +196,7 @@ export default function Settings() {
           )}
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" icon={<Download size={16} />} onClick={async () => {
-                const r = await downloadJson(snapshot(), `foulee-sauvegarde-${todayISO()}.json`)
+                const r = await downloadJson(snapshot(), `life-sauvegarde-${todayISO()}.json`)
                 if (r === 'error') notify('Le téléchargement a échoué', 'error')
               }}>
               Exporter une sauvegarde
@@ -241,7 +241,7 @@ export default function Settings() {
           </div>
         </Section>
       </div>
-      <p className="mt-6 text-center text-xs text-ink-3">Foulée · v1.0 · données 100 % locales</p>
+      <p className="mt-6 text-center text-xs text-ink-3">Life · v2.0</p>
     </div>
   )
 }

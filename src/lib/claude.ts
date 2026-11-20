@@ -1,4 +1,4 @@
-// Accès aux fonctions de claude.ai quand Foulée tourne comme artifact.
+// Accès aux fonctions de claude.ai quand Life tourne comme artifact.
 // Hors de claude.ai (GitHub Pages, local), window.claude n'existe pas : tout se désactive proprement.
 
 export interface McpCallResult {

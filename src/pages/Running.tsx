@@ -1,16 +1,20 @@
 import { useMemo, useState } from 'react'
-import { Activity, CalendarRange, FileUp, Footprints, HeartPulse, Mountain, Plus, Route } from 'lucide-react'
+import { Activity, CalendarRange, FileUp, Footprints, Gauge, HeartPulse, Mountain, Plus, Route } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
 import { Button, Callout, Card, CardTitle, EmptyState, Meter, PageHeader, Segmented, Select, Stat } from '../components/ui'
 import { ActivityGrid, SegmentedBar, SimpleBarChart, TrendChart } from '../components/charts'
 import { TrainingTabs, useActivityImport } from '../components/layout'
 import { RunRow } from '../components/activity'
+import { StatusPill, type Tone } from '../components/readiness'
+import { corosLoadStatus } from '../lib/insights'
 import { addDaysISO, capitalize, fmtDate, fmtDuration, fmtDurationShort, fmtKm, fmtNum, fmtPace, sum, todayISO, weekStartISO } from '../lib/format'
-import { RUN_TYPES, RUN_TYPE_ORDER, intensitySplit, longestRun, metersPerBeat, runsInRange, shoeKm, volumeIncrease, weeklyRunSummary } from '../lib/running'
+import { RUN_TYPES, RUN_TYPE_ORDER, dailyLoads, intensitySplit, loadStatus, longestRun, metersPerBeat, runsInRange, shoeKm, volumeIncrease, weeklyRunSummary } from '../lib/running'
 import type { RunType } from '../types'
 
+const ZONE_TONE: Record<string, Tone | undefined> = { optimal: 'good', sous: 'good', vigilance: 'warning', risque: 'critical', inconnu: undefined }
+
 export default function Running() {
-  const { runs, shoes, profile } = useStore()
+  const { runs, renfo, muscu, shoes, profile, sync } = useStore()
   const openForm = useUi((s) => s.openForm)
   const imp = useActivityImport()
   const today = todayISO()
@@ -25,6 +29,10 @@ export default function Running() {
   const avg4 = sum(weeks.slice(-5, -1), (w) => w.km) / 4
   const longest = longestRun(runs)
   const inc = volumeIncrease(weeks)
+  // Charge : celle mesurée par la montre si disponible, sinon calculée à partir des séances
+  const corosLoad = corosLoadStatus(sync, today)
+  const load = corosLoad ?? loadStatus(dailyLoads(runs, renfo, muscu), today)
+  const loadTone = ZONE_TONE[load.zone]
 
   const last28 = runsInRange(runs, addDaysISO(today, -27), today)
   const split = intensitySplit(last28, profile.efHrLimit)
@@ -117,6 +125,25 @@ export default function Running() {
             <Stat label="Moyenne 4 sem." icon={<Activity size={15} />} accent="run" value={fmtKm(avg4)} unit="km/sem" sub="4 dernières semaines complètes" />
             <Stat label="Plus longue sortie" icon={<Route size={15} />} accent="run" value={fmtKm(longest?.distanceKm)} unit="km" sub={longest ? `${fmtDate(longest.date, 'd MMM yyyy')} · ${fmtDuration(longest.durationSec)}` : undefined} />
           </div>
+
+          <Card className="mt-4">
+            <CardTitle icon={<Gauge size={16} />} accent="run" title="Charge d’entraînement" subtitle={corosLoad ? 'Mesurée par ta montre COROS : charge récente comparée à ton habitude' : 'Charge des 7 derniers jours comparée à ton habitude (4 semaines)'} />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div>
+                <p className="text-4xl font-bold tracking-tight">{load.ratio ? fmtNum(load.ratio, 2) : '—'}</p>
+                <p className="text-xs text-ink-3">ratio court terme / long terme</p>
+              </div>
+              <div className="min-w-0 flex-1">
+                {loadTone ? <StatusPill tone={loadTone}>{corosLoad?.comment ? `${load.label} · ${corosLoad.comment}` : load.label}</StatusPill> : <p className="text-sm font-semibold">{load.label}</p>}
+                <p className="mt-1.5 text-sm text-ink-2">{load.advice}</p>
+                {corosLoad && (
+                  <p className="mt-1 text-xs text-ink-3">
+                    Court terme {fmtNum(load.acute)} · long terme {fmtNum(load.chronicWeekly)} · zone idéale entre 0,8 et 1,3
+                  </p>
+                )}
+              </div>
+            </div>
+          </Card>
 
           {inc != null && inc > 15 && (
             <div className="mt-4">

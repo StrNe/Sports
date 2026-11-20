@@ -1,6 +1,6 @@
-import type { AppData, ISODate, Race, SleepEntry } from '../types'
+import type { AppData, ISODate, Race, SleepEntry, SyncState } from '../types'
 import { addDaysISO, avg, clamp, daysBetween, hashString, todayISO, weekStartISO } from './format'
-import { dailyLoads, intensitySplit, loadStatus, prepPhase, runsInRange, volumeIncrease, weeklyRunSummary, type LoadStatus } from './running'
+import { dailyLoads, intensitySplit, loadStatus, prepPhase, ratioZone, runsInRange, volumeIncrease, weeklyRunSummary, type LoadStatus } from './running'
 
 // ── Sommeil ─────────────────────────────────────────────────
 export function sleepStats(sleep: SleepEntry[], goalMin: number, days: number, today = todayISO()) {
@@ -52,6 +52,55 @@ export function lastSleep(sleep: SleepEntry[], today = todayISO()): SleepEntry |
   return sleep.find((s) => s.date === today) ?? sleep.find((s) => s.date === addDaysISO(today, -1))
 }
 
+// ── Récupération et charge mesurées par la montre ───────────
+export interface RecoveryView {
+  pct: number
+  label: string
+  tone: 'good' | 'warning' | 'critical'
+  /** Heures restantes estimées maintenant (0 = récupéré) */
+  remainingH: number
+  /** Âge de la mesure, en heures */
+  ageH: number
+}
+
+/** Dernière récupération COROS, si la mesure a moins de 20 h */
+export function recoveryView(sync: SyncState | undefined, now = Date.now()): RecoveryView | undefined {
+  const r = sync?.recovery
+  if (!r) return undefined
+  const ageH = (now - r.at) / 3_600_000
+  if (ageH > 20 || ageH < -1) return undefined
+  const remainingH = Math.max(0, Math.round((r.fullInH ?? 0) - Math.max(0, ageH)))
+  const pct = r.pct
+  if (pct >= 90) return { pct, label: 'Pleinement récupéré', tone: 'good', remainingH, ageH }
+  if (pct >= 70) return { pct, label: 'Bien récupéré', tone: 'good', remainingH, ageH }
+  if (pct >= 50) return { pct, label: 'Récupération en cours', tone: 'warning', remainingH, ageH }
+  return { pct, label: 'Fatigue marquée', tone: 'critical', remainingH, ageH }
+}
+
+const LOAD_COMMENTS: [RegExp, string][] = [
+  [/maintain/i, 'Maintien'],
+  [/optim/i, 'Optimal'],
+  [/improv|productive|build/i, 'Progression'],
+  [/recover/i, 'Récupération'],
+  [/over|excess|strain|high/i, 'Surcharge'],
+  [/detrain|decreas|declin|low/i, 'Charge en baisse'],
+]
+
+/** Appréciation de la charge par COROS, en français */
+export function loadCommentFr(c?: string): string | undefined {
+  if (!c) return undefined
+  return LOAD_COMMENTS.find(([re]) => re.test(c))?.[1] ?? c
+}
+
+export type CorosLoadStatus = LoadStatus & { comment?: string }
+
+/** Charge mesurée par COROS (aujourd'hui ou hier), au même barème que le calcul de l'appli */
+export function corosLoadStatus(sync: SyncState | undefined, today = todayISO()): CorosLoadStatus | undefined {
+  const l = sync?.load
+  if (!l || l.ratio == null || l.date < addDaysISO(today, -1)) return undefined
+  return { acute: l.shortTerm ?? 0, chronicWeekly: l.longTerm ?? 0, ratio: l.ratio, ...ratioZone(l.ratio), comment: loadCommentFr(l.comment) }
+}
+
 // ── Forme du jour ───────────────────────────────────────────
 export interface Readiness {
   score: number
@@ -61,7 +110,7 @@ export interface Readiness {
   factors: { label: string; value: string; impact: 'up' | 'down' | 'neutral' }[]
 }
 
-export function readiness(data: Pick<AppData, 'sleep' | 'runs' | 'renfo' | 'muscu' | 'profile'>, today = todayISO()): Readiness | undefined {
+export function readiness(data: Pick<AppData, 'sleep' | 'runs' | 'renfo' | 'muscu' | 'profile' | 'sync'>, today = todayISO(), now = Date.now()): Readiness | undefined {
   const s = lastSleep(data.sleep, today)
   if (!s) return undefined
   const factors: Readiness['factors'] = []
@@ -88,10 +137,12 @@ export function readiness(data: Pick<AppData, 'sleep' | 'runs' | 'renfo' | 'musc
     factors.push({ label: 'VFC nocturne', value: `${s.hrv} ms${range}`, impact: s.hrvStatus === 'bas' ? 'down' : 'up' })
   }
 
-  const load: LoadStatus = loadStatus(dailyLoads(data.runs, data.renfo, data.muscu), today)
+  // La charge mesurée par la montre est prioritaire sur celle calculée à partir des séances notées
+  const coros = corosLoadStatus(data.sync, today)
+  const load: LoadStatus = coros ?? loadStatus(dailyLoads(data.runs, data.renfo, data.muscu), today)
   const loadPts = { optimal: 15, sous: 14, vigilance: 8, risque: 2, inconnu: 12 }[load.zone]
   score += loadPts
-  if (load.ratio) factors.push({ label: 'Ratio de charge', value: load.ratio.toFixed(2).replace('.', ','), impact: load.zone === 'optimal' || load.zone === 'sous' ? 'up' : 'down' })
+  if (load.ratio) factors.push({ label: coros ? 'Ratio de charge (COROS)' : 'Ratio de charge', value: load.ratio.toFixed(2).replace('.', ','), impact: load.zone === 'optimal' || load.zone === 'sous' ? 'up' : 'down' })
 
   if (s.energy) {
     score += ((s.energy - 3) / 2) * 5 + 5
@@ -102,7 +153,14 @@ export function readiness(data: Pick<AppData, 'sleep' | 'runs' | 'renfo' | 'musc
     factors.push({ label: 'Courbatures', value: `${s.soreness}/5`, impact: 'down' })
   }
   score += 5
-  score = Math.round(clamp(score, 0, 100))
+  score = clamp(score, 0, 100)
+  // Récupération mesurée par la montre : elle pèse pour un quart de la note
+  const rec = recoveryView(data.sync, now)
+  if (rec) {
+    score = score * 0.75 + rec.pct * 0.25
+    factors.push({ label: 'Récupération (COROS)', value: `${rec.pct} %`, impact: rec.pct >= 80 ? 'up' : rec.pct < 50 ? 'down' : 'neutral' })
+  }
+  score = Math.round(score)
 
   if (score >= 75) return { score, label: 'En pleine forme', advice: 'Feu vert pour une séance de qualité.', tone: 'good', factors }
   if (score >= 55) return { score, label: 'Forme correcte', advice: 'Séance prévue OK, mais reste à l’écoute des sensations.', tone: 'warning', factors }

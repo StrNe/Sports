@@ -146,3 +146,39 @@ describe('import répété', () => {
     expect(s.profile.weightKg).toBe(76)
   })
 })
+
+describe('forme du jour avec la montre', () => {
+  const NOW = Date.UTC(2026, 10, 20, 8, 0)
+  const base = () => {
+    const d = emptyData()
+    d.sleep = [{ id: 's1', date: '2026-11-20', durationMin: 470, quality: 4 }]
+    return d
+  }
+
+  it('la récupération COROS récente pèse dans la note', async () => {
+    const { readiness, recoveryView } = await import('./insights')
+    const without = readiness(base(), '2026-11-20', NOW)!
+    const tired = readiness({ ...base(), sync: { recovery: { pct: 30, fullInH: 20, at: NOW - 2 * 3600_000 } } }, '2026-11-20', NOW)!
+    expect(tired.score).toBeLessThan(without.score)
+    expect(tired.factors.some((f) => f.label === 'Récupération (COROS)' && f.value === '30 %')).toBe(true)
+    // Temps restant recalculé à partir de l'heure de la mesure
+    expect(recoveryView({ recovery: { pct: 30, fullInH: 20, at: NOW - 2 * 3600_000 } }, NOW)).toMatchObject({ remainingH: 18, tone: 'critical' })
+    // Une mesure de plus de 20 h n'est plus utilisée
+    expect(recoveryView({ recovery: { pct: 30, at: NOW - 21 * 3600_000 } }, NOW)).toBeUndefined()
+  })
+
+  it('la charge COROS du jour remplace le calcul de l’appli', async () => {
+    const { corosLoadStatus, loadCommentFr } = await import('./insights')
+    expect(corosLoadStatus({ load: { date: '2026-11-20', ratio: 1.42, shortTerm: 90, longTerm: 63, comment: 'Overreaching', at: NOW } }, '2026-11-20')).toMatchObject({ zone: 'vigilance', comment: 'Surcharge' })
+    expect(corosLoadStatus({ load: { date: '2026-11-15', ratio: 1.42, at: NOW } }, '2026-11-20')).toBeUndefined()
+    expect(loadCommentFr('Maintaining')).toBe('Maintien')
+    expect(loadCommentFr('Something new')).toBe('Something new')
+  })
+
+  it('thème sombre par défaut, l’ancien réglage « système » devient sombre', () => {
+    expect(emptyData().theme).toBe('dark')
+    expect(normalizeData({ theme: 'system' as never }).theme).toBe('dark')
+    expect(normalizeData({ theme: 'light' }).theme).toBe('light')
+    expect(normalizeData({ theme: 'auto' }).theme).toBe('auto')
+  })
+})

@@ -204,3 +204,31 @@ Sleep HRV Time Series — Last 7 days
     expect(wd[6]).toMatchObject({ label: 'Dim', count: 1, nightMin: 540 })
   })
 })
+
+describe('récupération et charge COROS', () => {
+  const NOW = Date.UTC(2026, 10, 20, 8, 0)
+  it('lit la récupération (pourcentage, niveau, temps restant)', async () => {
+    const { parseRecovery } = await import('./coros')
+    expect(parseRecovery('Recovery Status\n========================\n\nRecovery: 100%\nLevel: Fresh\nEstimated Full Recovery: 0h', NOW)).toEqual({ pct: 100, level: 'Fresh', fullInH: 0, at: NOW })
+    expect(parseRecovery('Recovery: 62%\nLevel: Normal\nEstimated Full Recovery: 1d 3h', NOW)?.fullInH).toBe(27)
+    expect(parseRecovery('Recovery: 48%\nEstimated Full Recovery: 2h 30min', NOW)?.fullInH).toBe(2.5)
+    expect(parseRecovery('Aucune donnée', NOW)).toBeUndefined()
+  })
+
+  it('garde le jour le plus récent de l’évaluation de charge', async () => {
+    const { parseTrainingLoad } = await import('./coros')
+    const text = 'Training Load Assessment\n========================\n\n2026-11-19\nComment: Maintaining\nShort-Term Load: 66\nLong-Term Load: 73\nLoad Ratio: 0.90\n\n2026-11-20\nComment: Maintaining\nShort-Term Load: 57\nLong-Term Load: 71\nLoad Ratio: 0.80'
+    expect(parseTrainingLoad(text, NOW)).toEqual({ date: '2026-11-20', comment: 'Maintaining', shortTerm: 57, longTerm: 71, ratio: 0.8, at: NOW })
+    expect(parseTrainingLoad('rien', NOW)).toBeUndefined()
+  })
+
+  it('la synchro continue si la récupération est indisponible', async () => {
+    const call = async (tool: string) => {
+      if (tool === 'queryRecoveryStatus' || tool === 'queryTrainingLoadAssessment') throw Object.assign(new Error('refusé'), { code: 'approval_required' })
+      if (tool === 'querySportRecords') return 'Sport Records — (0 records)'
+      return ''
+    }
+    const res = await fetchCoros(call, { lastDate: '2026-11-18', raceDates: new Set(), today: '2026-11-20', hasHrv: true })
+    expect(res.status).toEqual({})
+  })
+})

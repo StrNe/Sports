@@ -1,11 +1,11 @@
 // Synchronisation avec COROS via le connecteur claude.ai (capacité `mcp` des artifacts).
-// Les outils COROS répondent en texte formaté : on le convertit en données Foulée.
+// Les outils COROS répondent en texte formaté : on le convertit en données Life.
 
-import type { AppData, DailyActivity, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SleepEntry } from '../types'
+import type { AppData, CorosLoad, CorosRecovery, DailyActivity, ISODate, PlannedWorkout, Profile, RenfoSession, Run, RunType, SleepEntry } from '../types'
 import { addDaysISO, daysBetween, parseDuration, todayISO } from './format'
 
 export const COROS_SERVER = 'COROS'
-export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryDailyHealthData', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview'] as const
+export const COROS_TOOLS = ['querySportRecords', 'querySleepOverview', 'querySleepHrv', 'queryRestingHeartRate', 'queryDailyHealthData', 'queryTrainingSchedule', 'queryUserInfo', 'queryFitnessAssessmentOverview', 'queryRecoveryStatus', 'queryTrainingLoadAssessment'] as const
 export type CorosTool = (typeof COROS_TOOLS)[number]
 
 const RUN_SPORTS = new Set([100, 101, 102, 103])
@@ -260,6 +260,49 @@ export function parseThresholdPace(text: string): number | undefined {
   return m ? Number(m[1]) * 60 + Number(m[2]) : undefined
 }
 
+/**
+ * « Recovery: 85% / Level: Fresh / Estimated Full Recovery: 12h »
+ * La durée restante peut s'écrire « 0h », « 12h », « 1d 3h » ou « 2h 30min ».
+ */
+export function parseRecovery(text: string, now = Date.now()): CorosRecovery | undefined {
+  const pct = text.match(/Recovery:\s*(\d+(?:\.\d+)?)\s*%/i)
+  if (!pct) return undefined
+  const level = text.match(/Level:\s*([^\n]+)/i)?.[1].trim()
+  const full = text.match(/Estimated Full Recovery:\s*([^\n]+)/i)?.[1]
+  let fullInH: number | undefined
+  if (full) {
+    const d = full.match(/(\d+(?:\.\d+)?)\s*d/i)
+    const h = full.match(/(\d+(?:\.\d+)?)\s*h/i)
+    const m = full.match(/(\d+)\s*m(?:in)?\b/i)
+    if (d || h || m) fullInH = Math.round(((d ? Number(d[1]) * 24 : 0) + (h ? Number(h[1]) : 0) + (m ? Number(m[1]) / 60 : 0)) * 10) / 10
+  }
+  return { pct: Math.max(0, Math.min(100, Math.round(Number(pct[1])))), level: level || undefined, fullInH, at: now }
+}
+
+/** Évaluation de charge COROS : on garde le jour le plus récent */
+export function parseTrainingLoad(text: string, now = Date.now()): CorosLoad | undefined {
+  let best: CorosLoad | undefined
+  for (const block of text.split(/\n(?=\d{4}-\d{2}-\d{2}\s*\n)/)) {
+    const date = block.match(/^(\d{4}-\d{2}-\d{2})\s*$/m)?.[1]
+    if (!date) continue
+    const num = (re: RegExp) => {
+      const m = block.match(re)
+      return m ? Number(m[1]) : undefined
+    }
+    const entry: CorosLoad = {
+      date,
+      comment: block.match(/Comment:\s*([^\n]+)/i)?.[1].trim() || undefined,
+      shortTerm: num(/Short-Term Load:\s*(\d+(?:\.\d+)?)/i),
+      longTerm: num(/Long-Term Load:\s*(\d+(?:\.\d+)?)/i),
+      ratio: num(/Load Ratio:\s*(\d+(?:\.\d+)?)/i),
+      at: now,
+    }
+    if (entry.ratio == null && entry.shortTerm == null) continue
+    if (!best || entry.date > best.date) best = entry
+  }
+  return best
+}
+
 // ── Synchronisation ─────────────────────────────────────────
 export type CorosCall = (tool: CorosTool, input: Record<string, unknown>) => Promise<string>
 
@@ -267,6 +310,8 @@ export interface CorosFetchResult {
   data: Partial<AppData>
   plannedRange: [ISODate, ISODate]
   counts: { runs: number; renfo: number; nights: number; planned: number }
+  /** État du jour : récupération et charge (absents si la montre ne les fournit pas) */
+  status: { recovery?: CorosRecovery; load?: CorosLoad }
 }
 
 const compact = (d: ISODate) => d.replace(/-/g, '')
@@ -361,9 +406,24 @@ export async function fetchCoros(call: CorosCall, opts: { lastDate?: ISODate; ra
     /* évaluation indisponible : sans importance */
   }
 
+  // 5. Récupération et charge du jour (facultatives : la synchro continue sans elles)
+  step('Récupération')
+  const status: CorosFetchResult['status'] = {}
+  try {
+    status.recovery = parseRecovery(await call('queryRecoveryStatus', {}))
+  } catch {
+    /* récupération indisponible */
+  }
+  try {
+    status.load = parseTrainingLoad(await call('queryTrainingLoadAssessment', { days: 3 }))
+  } catch {
+    /* charge indisponible : l'appli la calcule elle-même */
+  }
+
   return {
     data: { runs, renfo, sleep, planned, activity, profile: profile as Profile },
     plannedRange: [planStart, planEnd],
     counts: { runs: runs.length, renfo: renfo.length, nights: sleep.length, planned: planned.length },
+    status,
   }
 }

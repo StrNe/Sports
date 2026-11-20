@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import clsx from 'clsx'
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Flag, Plus } from 'lucide-react'
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Flag, Lightbulb, Plus } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
-import { ACCENT_BG_SOFT, ACCENT_TEXT, Button, Card, IconButton, Meter, PageHeader } from '../components/ui'
+import { ACCENT_BG_SOFT, ACCENT_TEXT, Button, Card, CardTitle, IconButton, Meter, PageHeader } from '../components/ui'
 import { KIND_ICON } from '../components/activity'
 import { addDaysISO, capitalize, fmtDate, fmtDurationShort, fmtKm, fmtMinutes, sum, todayISO, weekStartISO } from '../lib/format'
 import { RUN_TYPES } from '../lib/running'
+import { coachTips } from '../lib/insights'
 import type { PlannedWorkout } from '../types'
 
 export default function Planning() {
-  const { planned, runs, renfo, muscu, races, upsert } = useStore()
+  const data = useStore()
+  const { planned, runs, renfo, muscu, races, upsert } = data
+  const tips = coachTips(data).slice(0, 4)
   const openForm = useUi((s) => s.openForm)
   const today = todayISO()
   const [ws, setWs] = useState(weekStartISO(today))
@@ -162,6 +165,21 @@ export default function Planning() {
           )
         })}
       </div>
+      <Card className="mt-6">
+        <CardTitle icon={<Lightbulb size={16} />} accent="food" title="Conseils du coach" subtitle="D’après ta charge, ton sommeil et ta prochaine course" />
+        <ul className="grid gap-3 md:grid-cols-2">
+          {tips.map((t) => (
+            <li key={t.id} className={clsx('rounded-xl p-3', t.tone === 'warning' ? 'bg-warn/10' : 'bg-surface-2')}>
+              <p className="text-sm font-semibold">
+                <span className="mr-1">{t.emoji}</span>
+                {t.title}
+              </p>
+              <p className="mt-0.5 text-[13px] leading-snug text-ink-2">{t.text}</p>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
       <p className="mt-4 text-xs text-ink-3">Astuce : les séances en pointillés sont prévues, les blocs colorés sont réalisés. Clique sur « C’est fait » pour enregistrer la séance avec les infos déjà remplies.</p>
     </div>
   )

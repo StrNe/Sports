@@ -28,9 +28,9 @@ function useTheme() {
       // Dans claude.ai, le thème choisi par le lecteur est posé sur data-theme
       const host = root.getAttribute('data-theme')
       const systemDark = host === 'dark' ? true : host === 'light' ? false : mq.matches
-      const dark = theme === 'dark' || (theme === 'system' && systemDark)
+      const dark = theme === 'dark' || (theme === 'auto' && systemDark)
       document.documentElement.classList.toggle('dark', dark)
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f0f0e' : '#f4f4f1')
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0b0d' : '#f4f4f1')
     }
     apply()
     mq.addEventListener('change', apply)

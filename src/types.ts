@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Modèle de données de Foulée. Toutes les dates sont des chaînes
+// Modèle de données de Life. Toutes les dates sont des chaînes
 // locales "YYYY-MM-DD", les durées sont en secondes sauf mention.
 // ─────────────────────────────────────────────────────────────
 
@@ -276,7 +276,8 @@ export interface WeightEntry {
   kg: number
 }
 
-export type Theme = 'system' | 'light' | 'dark'
+/** Sombre par défaut ; « auto » suit l'appareil (ou le thème de claude.ai) */
+export type Theme = 'auto' | 'light' | 'dark'
 
 export type MealSlot = 'petit_dej' | 'dejeuner' | 'collation' | 'diner'
 
@@ -315,6 +316,32 @@ export interface SyncState {
   corosAt?: number
   /** Synchroniser automatiquement à l'ouverture */
   corosAuto?: boolean
+  /** Dernier état de récupération lu sur la montre */
+  recovery?: CorosRecovery
+  /** Dernière évaluation de la charge d'entraînement par la montre */
+  load?: CorosLoad
+}
+
+export interface CorosRecovery {
+  /** Récupération en % (100 = complètement récupéré) */
+  pct: number
+  /** Niveau donné par COROS (en anglais, ex. « Fresh ») */
+  level?: string
+  /** Heures restantes avant récupération complète, au moment de la mesure */
+  fullInH?: number
+  /** Horodatage (ms) de la lecture */
+  at: number
+}
+
+export interface CorosLoad {
+  date: ISODate
+  /** Charge aiguë (court terme) et chronique (long terme) calculées par COROS */
+  shortTerm?: number
+  longTerm?: number
+  ratio?: number
+  /** Appréciation COROS (en anglais, ex. « Maintaining ») */
+  comment?: string
+  at: number
 }
 
 export type DayType = 'repos' | 'facile' | 'intense' | 'long' | 'veille_course' | 'jour_course'

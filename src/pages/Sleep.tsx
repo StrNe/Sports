@@ -5,6 +5,7 @@ import { useStore, useUi } from '../store/useStore'
 import { Badge, Button, Callout, Card, CardTitle, EmptyState, ListRow, PageHeader, Segmented, Stat } from '../components/ui'
 import { MiniBars, SegmentedBar, StackedBarChart, TrendChart } from '../components/charts'
 import { runCorosSync } from '../components/sync'
+import { ReadinessDetail } from '../components/readiness'
 import { addDaysISO, avg, capitalize, fmtDate, fmtMinutes, hhmmToMinutes, minutesToHHMM, relativeDay, todayISO } from '../lib/format'
 import { sleepByWeekday, sleepStats } from '../lib/insights'
 import type { SleepEntry } from '../types'
@@ -196,11 +197,13 @@ export default function Sleep() {
         </div>
       )}
 
+      <ReadinessDetail />
+
       {!sleep.length ? (
         <EmptyState
           icon={<BedDouble size={22} />}
           title="Aucune nuit enregistrée"
-          text={corosOn ? 'Récupère tes nuits depuis COROS, ou saisis-les chaque matin : Foulée calcule ta forme du jour.' : 'Note chaque matin tes heures de coucher et de lever, ta qualité de sommeil et ta FC de repos : Foulée calcule ta forme du jour.'}
+          text={corosOn ? 'Récupère tes nuits depuis COROS, ou saisis-les chaque matin : Life calcule ta forme du jour.' : 'Note chaque matin tes heures de coucher et de lever, ta qualité de sommeil et ta FC de repos : Life calcule ta forme du jour.'}
           action={
             <Button variant="primary" onClick={() => (corosOn ? runCorosSync({ manual: true }) : openForm('sleep'))}>
               {corosOn ? 'Récupérer de COROS' : 'Enregistrer ma nuit'}

@@ -1,14 +1,14 @@
-# Foulée 🏃
+# Life
 
-Application web pour suivre toutes tes données sportives au même endroit : course à pied, renforcement, musculation, courses à venir, records, sommeil et idées de repas adaptées à l'entraînement du jour.
+Application web pour suivre ton entraînement et ton quotidien au même endroit : séance du jour, course à pied, renforcement, musculation, courses et records, sommeil et récupération, calories et tâches ménagères.
 
-Elle est pensée pour un coureur qui prépare un objectif : chaque écran répond à une question simple (« qu'est-ce que je fais aujourd'hui ? », « est-ce que je progresse ? », « est-ce que je récupère bien ? »).
+L'accueil répond en un coup d'œil à « qu'est-ce que je fais aujourd'hui ? » et « est-ce que je suis en forme ? » ; tout le détail vit dans les pages dédiées. Thème sombre par défaut.
 
 ## Deux façons de l'utiliser
 
 | | Version claude.ai (recommandée) | Version GitHub Pages |
 | --- | --- | --- |
-| Données COROS | **Synchronisées automatiquement** à l'ouverture : tout l'historique, chaque nouvelle sortie, les nuits, la FC de repos et le plan d'entraînement | Import manuel (`.fit`, `.gpx`, `.tcx` ou sauvegarde) |
+| Données COROS | **Synchronisées automatiquement** à l'ouverture : tout l'historique, chaque nouvelle sortie, les nuits, la VFC, la FC de repos, la récupération, la charge d'entraînement, les pas et le plan d'entraînement | Import manuel (`.fit`, `.gpx`, `.tcx` ou sauvegarde) |
 | Stockage | Sauvegarde en ligne privée : mêmes données sur téléphone et ordinateur | Dans le navigateur de l'appareil |
 | Construction | `npm run build:artifact` → `dist-artifact/foulee.html`, publié comme artifact claude.ai avec les capacités `mcp` (connecteur COROS, lecture seule), `db` (lecture et écriture réservées au propriétaire), `sample` (estimation des repas par Claude, photos comprises) et `downloads` | `npm run build` → `dist/`, déployé par GitHub Actions |
 
@@ -18,23 +18,23 @@ La version claude.ai utilise le connecteur COROS de ton compte claude.ai : la pa
 
 | Section | Contenu |
 | --- | --- |
-| **Accueil** | Compte à rebours vers la prochaine course avec la phase de préparation, forme du jour (sommeil + FC de repos + charge), séance prévue, repas du jour, chiffres de la semaine, conseils du coach, derniers records |
-| **Planning** | Semaine d'entraînement : séances prévues et réalisées, bouton « C'est fait » qui pré-remplit la saisie |
-| **Course à pied** | Volume hebdomadaire, répartition 80/20 (facile / intense, d'après la FC si renseignée), régularité, efficacité aérobie (mètres par battement), usure des chaussures, historique filtrable, import de fichiers `.fit` / `.gpx` / `.tcx` |
+| **Accueil** | En haut, la **séance du jour** (« C'est fait », séance de demain ou prochaine séance) ; dessous, **sommeil de la nuit, forme du jour et récupération** mesurée par la montre ; puis 4 tuiles qui ouvrent chacune leur page : km de la semaine, calories du jour, tâches ménagères, sommeil moyen |
+| **Planning** | Semaine d'entraînement : séances prévues et réalisées, bouton « C'est fait » qui pré-remplit la saisie, conseils du coach (charge, sommeil, phase de préparation, chaussures…) |
+| **Course à pied** | Charge d'entraînement (mesurée par COROS, sinon calculée à partir des séances), volume hebdomadaire, répartition 80/20 (facile / intense, d'après la FC si renseignée), régularité, efficacité aérobie (mètres par battement), usure des chaussures, historique filtrable, import de fichiers `.fit` / `.gpx` / `.tcx` |
 | **Renforcement** | Programmes prêts à l'emploi pour coureurs (Renfo A/B, gainage, prévention, mobilité, PPG), modèles personnels, suivi de la régularité |
 | **Musculation** | Séries × répétitions × charge, tonnage, 1RM estimé (Epley), progression et records par exercice, « Refaire » une séance |
-| **Courses & records** | Calendrier des courses (priorité A/B/C), résultats, records 5 km → marathon, prédictions de temps (Riegel) et VDOT |
-| **Sommeil** | Durée, qualité, dette de sommeil, régularité du coucher, FC de repos, heure de coucher idéale, conseils |
+| **Courses & records** | Compte à rebours vers la course objectif avec la phase de préparation, calendrier des courses (priorité A/B/C), résultats, records 5 km → marathon, prédictions de temps (Riegel) et VDOT |
+| **Sommeil & récupération** | Forme du jour détaillée (sommeil, VFC, FC de repos, charge et récupération COROS), durée, qualité, dette de sommeil, régularité du coucher, FC de repos, heure de coucher idéale, conseils |
 | **Repas & calories** | Journal alimentaire : tu décris ce que tu as mangé (Claude estime calories et macros, photo possible dans la version claude.ai), tu **scannes le code-barres** d’un produit (photo décodée dans le navigateur ; un produit inconnu est complété à partir de la photo de son étiquette ou d’Open Food Facts hors claude.ai, puis mémorisé), tu cherches parmi ~100 aliments courants avec leurs portions, tu reprends un repas récent ou tu saisis à la main. Objectif du jour calculé à partir du métabolisme de base, de l’activité mesurée par la montre (pas, calories actives) et des séances, selon ton but (garder, perdre ou prendre du poids). Onglet Suivi : mangé vs dépensé jour par jour, écart moyen, effet estimé sur le poids et pesées |
 | **Tâches ménagères** | Les tâches faites à la maison, saisies par toi (plusieurs d’un coup séparées par des virgules, ou en un geste parmi tes tâches habituelles), affichées jour par jour sur la semaine ; récap du jour, de la semaine et du mois avec comparaison à la période précédente, et graphique du mois. **Tout l’historique est conservé** : saut direct à n’importe quelle date, onglet Historique (années → mois → calendrier → détail du jour), recherche (« quand ai-je fait les vitres ? ») et export tableur (`.csv`) |
 | **Outils coureur** | Calculateur d'allure et temps de passage, prédictions + allures d'entraînement (méthode Daniels), zones cardiaques (Karvonen) et zones VMA, plan de ravitaillement, planificateur **Backyard** (longueur de boucle réglable, marche-course, marge par boucle) |
-| **Profil & données** | Profil, préférences, thème clair/sombre, export/import de sauvegarde, données de démonstration |
+| **Profil & données** | Profil, préférences, thème (sombre par défaut, clair ou automatique), export/import de sauvegarde, données de démonstration |
 
 ## Tes données
 
 - Tout est stocké **dans ton navigateur, sur ton appareil**. Rien n'est envoyé sur un serveur.
 - Pense à **exporter une sauvegarde** de temps en temps (Profil & données → Exporter). C'est aussi comme ça qu'on passe de l'ordinateur au téléphone : exporter d'un côté, importer de l'autre.
-- Ne committe jamais tes sauvegardes dans ce dépôt (il est public) : le `.gitignore` ignore déjà les fichiers `foulee-*.json`.
+- Ne committe jamais tes sauvegardes dans ce dépôt (il est public) : le `.gitignore` ignore déjà les fichiers `life-*.json`, `foulee-*.json` (anciennes sauvegardes) et les exports de tâches.
 
 ### Importer depuis ta montre
 

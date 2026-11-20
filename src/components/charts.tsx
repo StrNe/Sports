@@ -263,12 +263,14 @@ export function StackedBarChart({
 }
 
 /** Mini-histogramme sans axes (7 derniers jours dans une tuile) */
-export function MiniBars({ values, color, max, labels }: { values: (number | null)[]; color: string; max?: number; labels?: string[] }) {
+/** Mini-barres de tendance ; `highlight` met une barre en couleur pleine et atténue les autres */
+export function MiniBars({ values, color, max, labels, highlight }: { values: (number | null)[]; color: string; max?: number; labels?: string[]; highlight?: number }) {
   const top = max ?? Math.max(1, ...values.map((v) => v ?? 0))
+  const muted = `color-mix(in oklab, ${color} 45%, var(--surface-3))`
   return (
     <div className="flex h-8 items-end gap-1" aria-hidden>
       {values.map((v, i) => (
-        <div key={i} className="flex-1 rounded-t-[3px]" style={{ height: v ? `${Math.max(10, (v / top) * 100)}%` : '3px', background: v ? color : 'var(--surface-3)' }} title={labels?.[i]} />
+        <div key={i} className="flex-1 rounded-t-[3px]" style={{ height: v ? `${Math.max(10, (v / top) * 100)}%` : '3px', background: v ? (highlight == null || highlight === i ? color : muted) : 'var(--surface-3)' }} title={labels?.[i]} />
       ))}
     </div>
   )

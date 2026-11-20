@@ -6,4 +6,6 @@ dist-single
 coverage
 # Données personnelles exportées : ne jamais les committer (dépôt public)
 foulee-*.json
+life-*.json
+taches-menageres-*.csv
 dist-artifact
