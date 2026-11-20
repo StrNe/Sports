@@ -8,9 +8,9 @@ import { normalizeData } from '../store/useStore'
 import type { DbNamespace } from './claude'
 
 export const CLOUD_COLLECTION = 'foulee'
-const DATED = ['runs', 'renfo', 'muscu', 'sleep', 'planned', 'food', 'activity', 'weights'] as const
+const DATED = ['runs', 'renfo', 'muscu', 'sleep', 'planned', 'food', 'activity', 'weights', 'chores'] as const
 /** Le journal alimentaire grossit vite : un document par mois au lieu d'un par an */
-const MONTHLY = new Set<string>(['food'])
+const MONTHLY = new Set<string>(['food', 'chores'])
 
 /** JSON à clés triées, pour comparer des documents quel que soit l'ordre des champs */
 export function stableStringify(v: unknown): string {

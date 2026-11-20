@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleCheck, Dumbbell, Ellipsis, FileUp, Flag, Footprints, House, ListChecks, Moon, Plus, Settings, TriangleAlert, Trophy, Utensils, X } from 'lucide-react'
+import { Activity, BedDouble, Calculator, CalendarDays, CalendarPlus, CircleCheck, Dumbbell, Ellipsis, FileUp, Flag, Footprints, House, ListChecks, Moon, Plus, Settings, SprayCan, TriangleAlert, Trophy, Utensils, X } from 'lucide-react'
 import { useStore, useUi, type FormKind } from '../store/useStore'
 import { ACCENT_BG_SOFT, ACCENT_TEXT, type Accent } from './ui'
 import { importActivityFiles } from '../lib/importers'
@@ -20,6 +20,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
     items: [
       { to: '/', label: 'Accueil', icon: <House size={18} /> },
       { to: '/planning', label: 'Planning', icon: <CalendarDays size={18} /> },
+      { to: '/menage', label: 'Tâches ménagères', icon: <SprayCan size={18} />, accent: 'chore' },
     ],
   },
   {
@@ -166,7 +167,7 @@ export function BottomNav() {
   const loc = useLocation()
   const keyboard = useKeyboardOpen()
   const trainingActive = ['/seances', '/course', '/renfo', '/muscu'].includes(loc.pathname)
-  const moreActive = ['/planning', '/objectifs', '/sommeil', '/outils', '/reglages'].includes(loc.pathname)
+  const moreActive = ['/planning', '/objectifs', '/sommeil', '/outils', '/reglages', '/menage'].includes(loc.pathname)
   return (
     <nav className="bottom-nav fixed inset-x-0 bottom-0 z-[45] border-t border-line bg-surface lg:hidden" style={{ transform: keyboard ? 'translateY(110%)' : 'translateZ(0)' }} aria-label="Navigation principale">
       <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-1">
@@ -292,6 +293,7 @@ export function MoreSheet() {
     { to: '/outils', label: 'Outils coureur', icon: <Calculator size={20} /> },
     { to: '/renfo', label: 'Renforcement', icon: <Activity size={20} />, accent: 'renfo' },
     { to: '/muscu', label: 'Musculation', icon: <Dumbbell size={20} />, accent: 'muscu' },
+    { to: '/menage', label: 'Tâches ménagères', icon: <SprayCan size={20} />, accent: 'chore' },
     { to: '/reglages', label: 'Profil & données', icon: <Settings size={20} /> },
   ]
   return (

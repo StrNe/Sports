@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard'
 // Les pages secondaires sont chargées à la demande pour accélérer le premier affichage
 const Planning = lazy(() => import('./pages/Planning'))
 const Sessions = lazy(() => import('./pages/Sessions'))
+const Chores = lazy(() => import('./pages/Chores'))
 const Running = lazy(() => import('./pages/Running'))
 const Renfo = lazy(() => import('./pages/Renfo'))
 const Muscu = lazy(() => import('./pages/Muscu'))
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/planning" element={<Planning />} />
             <Route path="/seances" element={<Sessions />} />
+            <Route path="/menage" element={<Chores />} />
             <Route path="/course" element={<Running />} />
             <Route path="/renfo" element={<Renfo />} />
             <Route path="/muscu" element={<Muscu />} />

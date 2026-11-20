@@ -1,9 +1,9 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { useEffect, useRef, type ButtonHTMLAttributes, type ComponentProps, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import clsx from 'clsx'
 import { X } from 'lucide-react'
 
 // ── Couleurs d'activité ─────────────────────────────────────
-export type Accent = 'run' | 'renfo' | 'muscu' | 'sleep' | 'food' | 'race' | 'brand' | 'neutral'
+export type Accent = 'run' | 'renfo' | 'muscu' | 'sleep' | 'food' | 'race' | 'chore' | 'brand' | 'neutral'
 
 export const ACCENT_TEXT: Record<Accent, string> = {
   run: 'text-run',
@@ -12,6 +12,7 @@ export const ACCENT_TEXT: Record<Accent, string> = {
   sleep: 'text-sleep',
   food: 'text-food',
   race: 'text-race',
+  chore: 'text-chore',
   brand: 'text-brand',
   neutral: 'text-ink-2',
 }
@@ -22,6 +23,7 @@ export const ACCENT_BG_SOFT: Record<Accent, string> = {
   sleep: 'bg-sleep/12',
   food: 'bg-food/15',
   race: 'bg-race/12',
+  chore: 'bg-chore/12',
   brand: 'bg-brand/12',
   neutral: 'bg-surface-3',
 }
@@ -32,6 +34,7 @@ export const ACCENT_BG: Record<Accent, string> = {
   sleep: 'bg-sleep',
   food: 'bg-food',
   race: 'bg-race',
+  chore: 'bg-chore',
   brand: 'bg-brand',
   neutral: 'bg-ink-3',
 }
@@ -109,7 +112,8 @@ export function Field({ label, hint, children, className }: { label: string; hin
   )
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
+/** Champ texte ; accepte une `ref` (React 19 la transmet comme une prop) */
+export function Input(props: ComponentProps<'input'>) {
   return <input {...props} className={clsx('field', props.className)} />
 }
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {

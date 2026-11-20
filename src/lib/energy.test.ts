@@ -142,3 +142,26 @@ describe('code-barres', async () => {
     expect(f.name).toBe('Pâte à tartiner (Marque)')
   })
 })
+
+describe('tâches ménagères', async () => {
+  const { choreCounts, frequentChores, splitChores } = await import('./chores')
+  const c = (date: string, name: string) => ({ id: `${date}-${name}`, date, name })
+  it('compte aujourd’hui, la semaine et le mois', () => {
+    // Le 20 novembre 2026 est un vendredi : semaine du lundi 16 au dimanche 22
+    const list = [c('2026-11-20', 'Vaisselle'), c('2026-11-20', 'Lessive'), c('2026-11-19', 'Vaisselle'), c('2026-11-16', 'Aspirateur'), c('2026-11-15', 'Courses'), c('2026-11-02', 'Poubelles'), c('2026-10-31', 'Vaisselle')]
+    expect(choreCounts(list, '2026-11-20')).toEqual({ today: 2, yesterday: 1, week: 4, prevWeek: 1, month: 6, prevMonth: 1 })
+    expect(choreCounts([c('2026-12-31', 'x')], '2027-01-01').prevMonth).toBe(1)
+  })
+  it('propose les tâches les plus fréquentes, sans doublon d’écriture', () => {
+    const list = [c('2026-11-20', 'Vaisselle'), c('2026-11-19', 'vaisselle'), c('2026-11-18', 'Lessive')]
+    expect(frequentChores(list)).toEqual([
+      { name: 'Vaisselle', count: 2 },
+      { name: 'Lessive', count: 1 },
+    ])
+  })
+  it('découpe une saisie multiple', () => {
+    expect(splitChores('vaisselle, poubelles et lessive')).toEqual(['Vaisselle', 'Poubelles', 'Lessive'])
+    expect(splitChores('  ranger la chambre  ')).toEqual(['Ranger la chambre'])
+    expect(splitChores(' , ')).toEqual([])
+  })
+})

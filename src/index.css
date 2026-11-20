@@ -32,6 +32,7 @@
   --sleep: #2a78d6;
   --food: #eda100;
   --race: #e34948;
+  --chore: #d55181;
   --good: #0ca30c;
   --good-ink: #006300;
   --warn: #fab219;
@@ -63,6 +64,7 @@
   --sleep: #3987e5;
   --food: #c98500;
   --race: #e66767;
+  --chore: #e87ba4;
   --good: #0ca30c;
   --good-ink: #0ca30c;
   --brand: #e2622c;
@@ -88,6 +90,7 @@
   --color-sleep: var(--sleep);
   --color-food: var(--food);
   --color-race: var(--race);
+  --color-chore: var(--chore);
   --color-good: var(--good);
   --color-good-ink: var(--good-ink);
   --color-warn: var(--warn);

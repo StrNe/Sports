@@ -6,8 +6,8 @@ import { BUILTIN_RENFO } from '../data/training'
 export const DATA_VERSION = 1
 export const STORAGE_KEY = 'foulee-data'
 
-export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates' | 'food' | 'activity' | 'weights' | 'products'
-export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates', 'food', 'activity', 'weights', 'products']
+export type CollectionKey = 'runs' | 'renfo' | 'muscu' | 'races' | 'records' | 'sleep' | 'shoes' | 'planned' | 'renfoTemplates' | 'food' | 'activity' | 'weights' | 'products' | 'chores'
+export const COLLECTIONS: CollectionKey[] = ['runs', 'renfo', 'muscu', 'races', 'records', 'sleep', 'shoes', 'planned', 'renfoTemplates', 'food', 'activity', 'weights', 'products', 'chores']
 
 type Item<K extends CollectionKey> = AppData[K][number]
 
@@ -35,6 +35,7 @@ export function emptyData(): AppData {
     activity: [],
     weights: [],
     products: [],
+    chores: [],
     dayTypeOverrides: {},
     theme: 'system',
     sync: { corosAuto: true },
@@ -197,7 +198,7 @@ export function snapshot(): AppData {
 }
 
 // ── État d'interface (non persisté) ─────────────────────────
-export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned' | 'goals' | 'food' | 'foodEntry' | 'calories'
+export type FormKind = 'run' | 'renfo' | 'muscu' | 'sleep' | 'race' | 'record' | 'shoe' | 'planned' | 'goals' | 'food' | 'foodEntry' | 'calories' | 'chore'
 
 export type CorosStatus =
   | { state: 'unavailable' }

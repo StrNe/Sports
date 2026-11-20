@@ -260,6 +260,16 @@ export interface DailyActivity {
   exerciseMin?: number
 }
 
+/** Tâche ménagère faite */
+export interface ChoreEntry {
+  id: string
+  date: ISODate
+  name: string
+  /** Heure à laquelle elle a été notée (HH:MM) */
+  time?: string
+  note?: string
+}
+
 export interface WeightEntry {
   id: string
   date: ISODate
@@ -290,6 +300,8 @@ export interface AppData {
   activity: DailyActivity[]
   /** Pesées */
   weights: WeightEntry[]
+  /** Tâches ménagères faites */
+  chores: ChoreEntry[]
   /** Type de journée forcé pour la nutrition */
   dayTypeOverrides: Record<ISODate, DayType>
   theme: Theme

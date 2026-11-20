@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useStore, useUi } from '../store/useStore'
-import type { MuscuExercise, MuscuSession, PersonalRecord, PlannedKind, PlannedWorkout, Race, RaceKind, RenfoExercise, RenfoFocus, RenfoSession, Run, RunType, Shoe, SleepEntry } from '../types'
+import type { ChoreEntry, MuscuExercise, MuscuSession, PersonalRecord, PlannedKind, PlannedWorkout, Race, RaceKind, RenfoExercise, RenfoFocus, RenfoSession, Run, RunType, Shoe, SleepEntry } from '../types'
 import { Button, Field, IconButton, Input, NumberInput, Rating, Select, Textarea } from './ui'
 import { FormShell, Row } from './formShell'
 import { CaloriesForm, FoodEntryForm, FoodForm } from './food'
@@ -816,6 +816,39 @@ export function GoalsForm() {
   )
 }
 
+// ── Tâche ménagère ─────────────────────────────────────────
+export function ChoreForm({ initial }: { initial: ChoreEntry }) {
+  const { upsert, remove } = useStore()
+  const { closeForm } = useUi()
+  const [d, setD] = useState<ChoreEntry>(initial)
+  return (
+    <FormShell
+      title="Modifier la tâche"
+      onSave={() => {
+        upsert('chores', { ...d, name: d.name.trim() || initial.name })
+        closeForm()
+      }}
+      onDelete={() => remove('chores', d.id)}
+      canSave={!!d.name.trim()}
+    >
+      <Field label="Tâche">
+        <Input value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} />
+      </Field>
+      <Row>
+        <Field label="Jour">
+          <Input type="date" value={d.date} max={todayISO()} onChange={(e) => setD({ ...d, date: e.target.value || d.date })} />
+        </Field>
+        <Field label="Heure (optionnel)">
+          <Input type="time" value={d.time ?? ''} onChange={(e) => setD({ ...d, time: e.target.value || undefined })} />
+        </Field>
+      </Row>
+      <Field label="Note">
+        <Textarea value={d.note ?? ''} onChange={(e) => setD({ ...d, note: e.target.value || undefined })} placeholder="ex. salle de bain à fond" />
+      </Field>
+    </FormShell>
+  )
+}
+
 // ── Hôte des formulaires ───────────────────────────────────
 export function FormHost() {
   const form = useUi((s) => s.form)
@@ -847,5 +880,7 @@ export function FormHost() {
       return <FoodEntryForm key={key} initial={init} />
     case 'calories':
       return <CaloriesForm key={key} />
+    case 'chore':
+      return <ChoreForm key={key} initial={init} />
   }
 }
