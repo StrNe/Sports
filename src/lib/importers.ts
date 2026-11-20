@@ -157,7 +157,10 @@ export async function importActivityFiles(files: FileList | File[]): Promise<Imp
 
 // ── Sauvegarde JSON ─────────────────────────────────────────
 export async function downloadJson(data: unknown, filename: string): Promise<'ok' | 'declined' | 'error'> {
-  const json = JSON.stringify(data, null, 2)
+  return downloadText(JSON.stringify(data, null, 2), filename, 'application/json')
+}
+
+export async function downloadText(json: string, filename: string, type = 'text/plain'): Promise<'ok' | 'declined' | 'error'> {
   if (inClaude()) {
     // Dans claude.ai, les liens de téléchargement sont bloqués : on passe par la fonction dédiée
     const downloads = await useCapability('downloads')
@@ -169,7 +172,7 @@ export async function downloadJson(data: unknown, filename: string): Promise<'ok
       return (e as { code?: string }).code === 'declined' ? 'declined' : 'error'
     }
   }
-  const blob = new Blob([json], { type: 'application/json' })
+  const blob = new Blob([json], { type })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

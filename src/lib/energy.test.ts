@@ -165,3 +165,38 @@ describe('tâches ménagères', async () => {
     expect(splitChores(' , ')).toEqual([])
   })
 })
+
+describe('historique des tâches', async () => {
+  const { choreYears, monthCounts, monthGrid, searchChores, choresCsv } = await import('./chores')
+  const c = (date: string, name: string, extra = {}) => ({ id: `${date}-${name}`, date, name, ...extra })
+  const list = [c('2024-03-12', 'Vitres'), c('2025-09-03', 'Vitres', { note: 'cuisine; salon' }), c('2026-11-20', 'Vaisselle', { time: '20:15' }), c('2026-11-18', 'vaisselle'), c('2026-01-05', 'Lessive')]
+  it('liste les années et compte par mois', () => {
+    expect(choreYears(list, '2026-11-20')).toEqual([
+      { year: '2026', count: 3 },
+      { year: '2025', count: 1 },
+      { year: '2024', count: 1 },
+    ])
+    expect(choreYears([], '2029-02-01')).toEqual([{ year: '2029', count: 0 }])
+    const m = monthCounts(list, '2026')
+    expect(m[0]).toBe(1)
+    expect(m[10]).toBe(2)
+  })
+  it('construit un calendrier commençant le lundi', () => {
+    const g = monthGrid(2026, 11) // le 1er novembre 2026 est un dimanche
+    expect(g.slice(0, 7)).toEqual([null, null, null, null, null, null, '2026-11-01'])
+    expect(g.filter(Boolean)).toHaveLength(30)
+  })
+  it('retrouve une tâche dans tout l’historique', () => {
+    const r = searchChores(list, 'vitre')
+    expect(r).toEqual([{ name: 'Vitres', count: 2, last: '2025-09-03', dates: ['2025-09-03', '2024-03-12'] }])
+    expect(searchChores(list, 'VAISSELLE')[0]).toMatchObject({ count: 2, last: '2026-11-20' })
+    expect(searchChores(list, 'salon')[0].name).toBe('Vitres')
+  })
+  it('exporte en CSV lisible par un tableur', () => {
+    const csv = choresCsv(list).split('\n')
+    expect(csv[0]).toBe('date;heure;tâche;note')
+    expect(csv[1]).toBe('2024-03-12;;Vitres;')
+    expect(csv[2]).toBe('2025-09-03;;Vitres;"cuisine; salon"')
+    expect(csv[csv.length - 1]).toBe('2026-11-20;20:15;Vaisselle;')
+  })
+})

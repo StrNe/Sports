@@ -89,6 +89,42 @@ export function normalizeData(input: Partial<AppData>): AppData {
   return out
 }
 
+/**
+ * Copie locale dans le navigateur. Après des années de données, le quota du navigateur (~5 Mo)
+ * peut être atteint : on ne bloque jamais l'appli pour autant. Dans la version claude.ai, la base
+ * en ligne reste la sauvegarde de référence ; ailleurs, on prévient pour qu'un export soit fait.
+ */
+let storageWarned = false
+const safeLocalStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      if (!storageWarned) {
+        storageWarned = true
+        setTimeout(() => {
+          const ui = useUi.getState()
+          if (ui.cloud.state !== 'saved' && ui.cloud.state !== 'saving') ui.notify('Stockage du navigateur plein : exporte une sauvegarde (Profil & données)', 'error')
+        }, 0)
+      }
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name)
+    } catch {
+      /* rien à faire */
+    }
+  },
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
@@ -178,7 +214,7 @@ export const useStore = create<Store>()(
     {
       name: STORAGE_KEY,
       version: DATA_VERSION,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => safeLocalStorage),
       partialize: (s) => {
         const out: Record<string, unknown> = {}
         for (const [k, v] of Object.entries(s)) if (typeof v !== 'function') out[k] = v
@@ -188,6 +224,7 @@ export const useStore = create<Store>()(
     },
   ),
 )
+
 
 /** Instantané des données (sans les actions) pour l'export */
 export function snapshot(): AppData {
