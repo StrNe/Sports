@@ -4,6 +4,16 @@ Application web pour suivre toutes tes données sportives au même endroit : cou
 
 Elle est pensée pour un coureur qui prépare un objectif : chaque écran répond à une question simple (« qu'est-ce que je fais aujourd'hui ? », « est-ce que je progresse ? », « est-ce que je récupère bien ? »).
 
+## Deux façons de l'utiliser
+
+| | Version claude.ai (recommandée) | Version GitHub Pages |
+| --- | --- | --- |
+| Données COROS | **Synchronisées automatiquement** à l'ouverture : tout l'historique, chaque nouvelle sortie, les nuits, la FC de repos et le plan d'entraînement | Import manuel (`.fit`, `.gpx`, `.tcx` ou sauvegarde) |
+| Stockage | Sauvegarde en ligne privée : mêmes données sur téléphone et ordinateur | Dans le navigateur de l'appareil |
+| Construction | `npm run build:artifact` → `dist-artifact/foulee.html`, publié comme artifact claude.ai avec les capacités `mcp` (connecteur COROS, lecture seule), `db` (lecture et écriture réservées au propriétaire) et `downloads` | `npm run build` → `dist/`, déployé par GitHub Actions |
+
+La version claude.ai utilise le connecteur COROS de ton compte claude.ai : la page ne voit jamais tes identifiants, et claude.ai te demande ton accord à la première synchronisation.
+
 ## Ce que fait l'application
 
 | Section | Contenu |
